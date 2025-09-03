@@ -1,0 +1,6 @@
+.btn-primary{background:#4f46e5;color:#fff;padding:.5rem 1rem;border-radius:.5rem}
+.btn-primary:hover{background:#4338ca}
+.btn-green{background:#059669;color:#fff;padding:.5rem 1rem;border-radius:.5rem}
+.btn-green:hover{background:#047857}
+.row-selected{background:#eef2ff}
+th.sortable{cursor:pointer}

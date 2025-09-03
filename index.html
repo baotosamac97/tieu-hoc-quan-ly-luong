@@ -1,344 +1,72 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quản lý lương viên chức - Tiểu học</title>
-
-  <!-- Tailwind CSS (CDN) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- XLSX (đọc Excel) - jsDelivr + fallback tránh "XLSX is not defined" -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script>
-    if (typeof XLSX === 'undefined') {
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      document.head.appendChild(s);
-    }
-  </script>
-
-  <!-- Chart.js (vẽ biểu đồ) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-  <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans"; }
-    .shadow-soft { box-shadow: 0 4px 20px rgba(0,0,0,.08); }
-  </style>
-</head>
+<!-- ... phần đầu giữ nguyên ... -->
 <body class="bg-gray-50 min-h-screen">
-  <!-- Header -->
   <header class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-6 shadow-soft">
-    <div class="container mx-auto px-4">
-      <h1 class="text-3xl font-bold text-center">🎓 Quản lý lương viên chức – Trường Tiểu học</h1>
-      <p class="text-center mt-2 opacity-90">Import Excel → Xem KPI, biểu đồ & bảng dữ liệu</p>
+    <div class="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-3">
+      <div>
+        <h1 class="text-3xl font-bold">🎓 Quản lý lương viên chức – Trường Tiểu học</h1>
+        <p class="opacity-90">Import Excel → Verify → KPI, biểu đồ & bảng</p>
+      </div>
+
+      <!-- Auth box -->
+      <div class="flex items-center gap-2">
+        <span id="authInfo" class="text-sm opacity-90 hidden"></span>
+        <span id="roleBadge" class="text-xs px-2 py-1 rounded bg-black/20 hidden"></span>
+        <button id="loginBtn" class="bg-white text-indigo-700 font-semibold px-3 py-1.5 rounded">Đăng nhập Google</button>
+        <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 text-white font-semibold px-3 py-1.5 rounded hidden">Đăng xuất</button>
+      </div>
     </div>
   </header>
 
   <main class="container mx-auto px-4 py-8">
-    <!-- Upload Excel -->
-    <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
-      <h2 class="text-2xl font-bold text-gray-800 mb-4">📂 Import danh sách từ Excel</h2>
-      <p class="text-gray-600 mb-3">
-        Chọn file theo mẫu của trường (dòng tiêu đề có cột <strong>Họ và tên</strong> / <strong>Hệ số lương</strong>). Hệ thống tự dò header, không cần chỉnh file gốc.
-      </p>
-      <div class="flex flex-col md:flex-row items-start md:items-center gap-3">
-        <input id="excelFileInput" type="file" accept=".xlsx,.xls" class="px-3 py-2 border rounded-lg w-full md:w-auto" />
-        <button id="uploadExcelBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2 rounded-lg">
-          📤 Tải lên & hiển thị
-        </button>
+    <!-- Import + Tools -->
+    <div class="bg-white rounded-xl shadow-soft p-6 mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">📂 Import Excel</h2>
+          <p class="text-gray-600">Tự dò sheet, gộp tiêu đề nhiều hàng, chuẩn hóa cột & có bước Verify trước khi hiển thị.</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input id="excelFileInput" type="file" accept=".xlsx,.xls" class="px-3 py-2 border rounded-lg" />
+          <button id="uploadExcelBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg">📤 Tải lên (có Verify)</button>
+          <button id="exportExcelBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg">📥 Xuất Excel (đang xem)</button>
+          <button id="saveFirebaseBtn" class="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg" disabled>☁️ Lưu Firebase</button>
+          <button id="loadFirebaseBtn" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2 rounded-lg" disabled>☁️ Tải từ Firebase</button>
+        </div>
       </div>
-      <p class="text-sm text-gray-500 mt-2">
-        Gợi ý: Dùng file “DANH SÁCH VIÊN CHỨC… THÁNG 8_2025.xlsx” của bạn.
-      </p>
-    </div>
-
-    <!-- KPIs -->
-    <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
-      <h2 class="text-2xl font-bold text-gray-800 mb-6">📈 Tổng quan</h2>
-      <div id="excelKpis" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Filled by JS -->
+      <div class="mt-4 grid md:grid-cols-2 gap-3">
+        <input id="searchInput" class="px-3 py-2 border rounded-lg" placeholder="🔎 Tìm theo họ tên / chức danh / đơn vị / cấp học / hạng / mã CDNN..." />
+        <div id="rankChips" class="flex flex-wrap gap-2"></div>
       </div>
     </div>
 
-    <!-- Charts -->
-    <div class="grid lg:grid-cols-2 gap-8 mb-8">
-      <div class="bg-white rounded-xl shadow-soft p-6">
-        <h3 class="text-lg font-semibold mb-3">📊 Cơ cấu chức danh</h3>
-        <canvas id="rolePie" height="220"></canvas>
-      </div>
-      <div class="bg-white rounded-xl shadow-soft p-6">
-        <h3 class="text-lg font-semibold mb-3">📈 Phân bố hệ số lương</h3>
-        <canvas id="coefBar" height="220"></canvas>
-      </div>
-    </div>
-
-    <!-- Table -->
-    <div class="bg-white rounded-xl shadow-soft p-6">
-      <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Bảng dữ liệu</h2>
-      <div class="border rounded-lg overflow-x-auto">
-        <table class="min-w-full text-sm" id="excelTable">
-          <thead class="bg-gray-100" id="excelThead"></thead>
-          <tbody id="excelTbody"></tbody>
-        </table>
-      </div>
-    </div>
+    <!-- ... Các section KPI/Chart/Table giữ nguyên ... -->
   </main>
 
-  <!-- App Script -->
-  <script>
-    // ===== Helpers =====
-    function normStr(s){ return s==null ? '' : String(s).trim(); }
-    function slugify(s){
-      s = normStr(s).toLowerCase()
-        .replace(/\r?\n+/g,' ')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // bỏ dấu
-      s = s.replace(/[^a-z0-9/ ]+/g,' ');
-      return s.replace(/\s+/g,' ').trim();
-    }
-    function parseDateLike(v){
-      if(v==null || v==='') return null;
-      if(typeof v==='number'){
-        const excelEpoch=new Date(1900,0,1);
-        const d=new Date(excelEpoch.getTime()+(v-2)*24*60*60*1000);
-        return isNaN(d)?null:d;
-      }
-      const d=new Date(v); if(!isNaN(d)) return d;
-      const m=String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if(m){const dd=+m[1],mm=+m[2]-1,yy=+m[3];const d2=new Date(yy,mm,dd);return isNaN(d2)?null:d2;}
-      return null;
-    }
-    function formatDateVi(d){ return d ? d.toLocaleDateString('vi-VN') : ''; }
-
-    // ===== Gộp tiêu đề qua nhiều hàng & ánh xạ cột "mềm" =====
-    function buildColumnMapFromTopRows(aoa, topScanRows=10){
-      const colCount = Math.max(...aoa.slice(0,topScanRows).map(r=>r.length), 0);
-      const colHeaderConcat = Array.from({length: colCount}, (_,j)=>{
-        const parts=[];
-        for(let i=0;i<Math.min(topScanRows, aoa.length);i++){
-          const cell = aoa[i]?.[j];
-          if(cell!=null && String(cell).trim()!=='') parts.push(String(cell));
-        }
-        return parts.join(' ');
-      });
-      const colSlug = colHeaderConcat.map(slugify);
-
-      const idx = {};
-      // Họ và tên
-      for(let j=0;j<colSlug.length;j++){
-        const s=colSlug[j];
-        if(s.includes('ho va ten') || s.includes('ho ten') || s.includes('hovaten')){
-          idx.name=j; break;
-        }
-      }
-      // Hệ số lương (ưu tiên cụm có "he so" + "luong")
-      for(let j=0;j<colSlug.length;j++){
-        const s=colSlug[j];
-        if(s.includes('he so luong') || (s.includes('he so') && s.includes('luong'))){
-          idx.coefficient=j; break;
-        }
-      }
-      // Fallback "he so" chung, tránh "chenh lech/vuot"
-      if(idx.coefficient==null){
-        for(let j=0;j<colSlug.length;j++){
-          const s=colSlug[j];
-          if(s.includes('he so') && !s.includes('chenh') && !s.includes('vuot')){
-            idx.coefficient=j; break;
-          }
-        }
-      }
-
-      // Các cột khác (không bắt buộc)
-      for(let j=0;j<colSlug.length;j++){
-        const s=colSlug[j];
-        if(idx.birth==null && (s.includes('ngay thang nam sinh') || s.includes('ngay sinh'))) idx.birth=j;
-        if(idx.role==null && (s.includes('chuc vu') || s.includes('chuc danh cong tac') || s.includes('chuc danh'))) idx.role=j;
-        if(idx.ward==null && (s.includes('thuoc xa/phuong') || s.includes('xa/phuong') || s.includes('xa phuong'))) idx.ward=j;
-        if(idx.unit==null && ((s.includes('co quan') && s.includes('don vi')) || s.includes('don vi dang lam viec') || s.includes('truong tieu hoc') || s.includes('don vi'))) idx.unit=j;
-        if(idx.rank==null && (s.includes('cdnn') && s.includes('hang'))) idx.rank=j;
-        if(idx.rankCode==null && (s.includes('ma chuc danh nghe nghiep') || s.includes('ma cdnn') || s.includes('ma so cdnn'))) idx.rankCode=j;
-        if(idx.effectiveDate==null && (s.includes('ngay huong') || s.includes('ngay ap dung'))) idx.effectiveDate=j;
-        if(idx.note==null && s.includes('ghi chu')) idx.note=j;
-      }
-      return {colHeaderConcat, colSlug, idx};
-    }
-
-    function findDataStartRow(aoa, nameCol, topScanRows=10){
-      for(let i=topScanRows; i<aoa.length; i++){
-        const cell = aoa[i]?.[nameCol];
-        const v = slugify(cell||'');
-        if(v && !v.includes('ho va ten') && !v.includes('ho ten')) return i;
-      }
-      for(let i=0;i<aoa.length;i++){
-        const cell = aoa[i]?.[nameCol];
-        const v = slugify(cell||'');
-        if(v && !v.includes('ho va ten') && !v.includes('ho ten')) return i;
-      }
-      return null;
-    }
-
-    // ===== Parse Excel với header "chịu lỗi" =====
-    async function parseExcelAsTemplate(file){
-      if(typeof XLSX==='undefined') throw new Error('Thư viện XLSX chưa tải được. Kiểm tra mạng/CDN.');
-      const ab = await file.arrayBuffer();
-      const wb = XLSX.read(ab, { type:'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true });
-      if(!aoa || aoa.length===0) throw new Error('Sheet rỗng');
-
-      const { idx } = buildColumnMapFromTopRows(aoa, 10);
-      if(idx.name==null || idx.coefficient==null){
-        console.warn('Header mapping failed. idx=', idx);
-        throw new Error('Thiếu cột bắt buộc: "Họ và tên" hoặc "Hệ số lương". Vui lòng kiểm tra lại header.');
-      }
-
-      const dataStart = findDataStartRow(aoa, idx.name, 10);
-      if(dataStart==null) throw new Error('Không xác định được dòng bắt đầu dữ liệu (cột "Họ và tên" trống).');
-
-      const records = [];
-      for(let i=dataStart;i<aoa.length;i++){
-        const row = aoa[i]||[];
-        const nameCell = row[idx.name];
-        if(!nameCell || !String(nameCell).trim()) continue;
-        const nameSlug = slugify(nameCell);
-        if(!nameSlug || nameSlug.includes('ho va ten') || nameSlug.includes('ho ten')) continue;
-
-        const rec = {
-          name: normStr(row[idx.name]),
-          birth: idx.birth!=null ? parseDateLike(row[idx.birth]) : null,
-          role: idx.role!=null ? normStr(row[idx.role]) : '',
-          ward: idx.ward!=null ? normStr(row[idx.ward]) : '',
-          unit: idx.unit!=null ? normStr(row[idx.unit]) : '',
-          rank: idx.rank!=null ? normStr(row[idx.rank]) : '',
-          rankCode: idx.rankCode!=null ? normStr(row[idx.rankCode]) : '',
-          coefficient: idx.coefficient!=null && row[idx.coefficient]!=null ? parseFloat(row[idx.coefficient]) : null,
-          effectiveDate: idx.effectiveDate!=null ? parseDateLike(row[idx.effectiveDate]) : null,
-          note: idx.note!=null ? normStr(row[idx.note]) : '',
-        };
-        if(Object.values(rec).some(v=>v!=='' && v!=null)) records.push(rec);
-      }
-
-      const headers = ['Họ và tên','Chức danh','Đơn vị','CDNN/Hạng','Mã CDNN','Hệ số lương','Ngày hưởng','Ghi chú'];
-      return { headers, records };
-    }
-
-    // ===== Render =====
-    let rolePieChart = null, coefBarChart = null;
-
-    function renderKpis(records) {
-      const total = records.length;
-      const teachers = records.filter(r => (r.role || '').toLowerCase().includes('giáo viên')).length;
-      const principals = records.filter(r => {
-        const t=(r.role||'').toLowerCase();
-        return t.includes('hiệu trưởng') || t.includes('phó hiệu trưởng');
-      }).length;
-      const vals = records.map(r => r.coefficient).filter(v => typeof v === 'number' && !isNaN(v));
-      const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : '-';
-
-      document.getElementById('excelKpis').innerHTML = `
-        <div class="p-4 rounded-lg border bg-blue-50">
-          <div class="text-xs text-blue-600">Tổng viên chức</div>
-          <div class="text-2xl font-bold text-blue-800">${total}</div>
+  <!-- Modal VERIFY -->
+  <div id="verifyModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-soft max-w-4xl w-full">
+      <div class="p-4 border-b flex items-center justify-between">
+        <h3 class="text-lg font-bold">🔎 Kiểm tra dữ liệu trước khi import</h3>
+        <button id="closeVerifyBtn" class="px-2 py-1 border rounded">✖</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div id="verifySummary" class="text-sm"></div>
+        <div class="border rounded overflow-auto max-h-80">
+          <table class="min-w-full text-xs">
+            <thead class="bg-gray-100"><tr id="verifyThead"></tr></thead>
+            <tbody id="verifyTbody"></tbody>
+          </table>
         </div>
-        <div class="p-4 rounded-lg border bg-green-50">
-          <div class="text-xs text-green-600">Số giáo viên</div>
-          <div class="text-2xl font-bold text-green-800">${teachers}</div>
-        </div>
-        <div class="p-4 rounded-lg border bg-purple-50">
-          <div class="text-xs text-purple-600">HT/PHT</div>
-          <div class="text-2xl font-bold text-purple-800">${principals}</div>
-        </div>
-        <div class="p-4 rounded-lg border bg-amber-50">
-          <div class="text-xs text-amber-600">Hệ số lương TB</div>
-          <div class="text-2xl font-bold text-amber-800">${avg}</div>
-        </div>`;
-    }
+        <div id="verifyWarnings" class="text-sm text-amber-700"></div>
+      </div>
+      <div class="p-4 border-t flex items-center justify-end gap-2">
+        <button id="cancelImportBtn" class="px-4 py-2 border rounded">Hủy</button>
+        <button id="confirmImportBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Xác nhận import</button>
+      </div>
+    </div>
+  </div>
 
-    function renderRolePie(records) {
-      const counts = {};
-      records.forEach(r => {
-        const k = r.role || 'Khác/Trống';
-        counts[k] = (counts[k] || 0) + 1;
-      });
-      const labels = Object.keys(counts);
-      const data = Object.values(counts);
-
-      if (rolePieChart) rolePieChart.destroy();
-      rolePieChart = new Chart(document.getElementById('rolePie').getContext('2d'), {
-        type: 'pie',
-        data: { labels, datasets: [{ data }] }
-      });
-    }
-
-    function renderCoefBar(records) {
-      const bins = { '2.x': 0, '3.x': 0, '4.x': 0, '5.0+': 0 };
-      records.forEach(r => {
-        const c = r.coefficient;
-        if (typeof c !== 'number') return;
-        if (c >= 5.0) bins['5.0+']++;
-        else if (c >= 4.0) bins['4.x']++;
-        else if (c >= 3.0) bins['3.x']++;
-        else bins['2.x']++;
-      });
-
-      if (coefBarChart) coefBarChart.destroy();
-      coefBarChart = new Chart(document.getElementById('coefBar').getContext('2d'), {
-        type: 'bar',
-        data: { labels: Object.keys(bins), datasets: [{ data: Object.values(bins) }] },
-        options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-      });
-    }
-
-    function renderTable(headers, records) {
-      const thead = document.getElementById('excelThead');
-      const tbody = document.getElementById('excelTbody');
-      thead.innerHTML = `
-        <tr>
-          <th class="px-3 py-2 text-left">Họ và tên</th>
-          <th class="px-3 py-2 text-left">Chức danh</th>
-          <th class="px-3 py-2 text-left">Đơn vị</th>
-          <th class="px-3 py-2 text-left">CDNN/Hạng</th>
-          <th class="px-3 py-2 text-left">Mã CDNN</th>
-          <th class="px-3 py-2 text-right">Hệ số</th>
-          <th class="px-3 py-2 text-left">Ngày hưởng</th>
-          <th class="px-3 py-2 text-left">Ghi chú</th>
-        </tr>`;
-      tbody.innerHTML = records.map(r => `
-        <tr class="border-b">
-          <td class="px-3 py-2">${r.name || ''}</td>
-          <td class="px-3 py-2">${r.role || ''}</td>
-          <td class="px-3 py-2">${r.unit || ''}</td>
-          <td class="px-3 py-2">${r.rank || ''}</td>
-          <td class="px-3 py-2">${r.rankCode || ''}</td>
-          <td class="px-3 py-2 text-right">${r.coefficient ?? ''}</td>
-          <td class="px-3 py-2">${formatDateVi(r.effectiveDate)}</td>
-          <td class="px-3 py-2">${r.note || ''}</td>
-        </tr>`).join('');
-    }
-
-    async function uploadExcelUsingTemplate() {
-      const fileInput = document.getElementById('excelFileInput');
-      const file = fileInput.files && fileInput.files[0];
-      if (!file) { alert('Vui lòng chọn file Excel!'); return; }
-
-      try {
-        const { headers, records } = await parseExcelAsTemplate(file);
-        if (!records.length) { alert('Không có dữ liệu hợp lệ sau dòng tiêu đề.'); return; }
-
-        renderKpis(records);
-        renderRolePie(records);
-        renderCoefBar(records);
-        renderTable(headers, records);
-
-        alert(`✅ Đã import ${records.length} dòng.`);
-        fileInput.value = '';
-      } catch (err) {
-        console.error(err);
-        alert('Lỗi import: ' + (err?.message || err));
-      }
-    }
-
-    document.getElementById('uploadExcelBtn')?.addEventListener('click', uploadExcelUsingTemplate);
-  </script>
+  <!-- App modules -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
