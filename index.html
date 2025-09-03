@@ -2,128 +2,90 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>🎓 Quản lý lương viên chức – Trường Tiểu học</title>
 
-  <!-- Tailwind CSS -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { inter: ['Inter', 'ui-sans-serif', 'system-ui'] },
-          colors: {
-            brand: {
-              50:  '#eef2ff',
-              100: '#e0e7ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca'
-            }
-          }
+          fontFamily: { inter: ['Inter','ui-sans-serif','system-ui'] },
+          colors: { brand: { 600:'#4f46e5', 700:'#4338ca' } }
         }
       }
     }
   </script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet"/>
 
-  <!-- XLSX: bắt buộc để import Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-
-  <!-- (Tuỳ chọn) Chart.js nếu bạn vẽ biểu đồ -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <!-- XLSX: KHÔNG defer để đảm bảo tải xong trước app script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
-    html, body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    html,body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+    .diff-cell{background:#fef3c7}
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
   <!-- Header -->
   <header class="bg-gradient-to-r from-brand-600 to-indigo-600 text-white">
-    <div class="max-w-7xl mx-auto px-4 lg:px-6 py-6">
-      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl md:text-3xl font-bold leading-tight">
-            🎓 Quản lý lương viên chức – Trường Tiểu học
-          </h1>
-          <p class="mt-1 text-white/90">
-            Import Excel → Verify → KPI, biểu đồ &amp; bảng
-          </p>
-        </div>
-
-        <!-- Auth box -->
-        <div class="flex items-center gap-2">
-          <span id="authInfo" class="hidden text-sm bg-white/10 px-3 py-1.5 rounded-full"></span>
-          <span id="roleBadge" class="hidden text-xs font-semibold px-2 py-1 rounded bg-black/20"></span>
-          <button id="loginBtn" class="bg-white text-brand-700 hover:bg-slate-100 font-semibold px-3 py-2 rounded-lg shadow-sm">
-            Đăng nhập Google
-          </button>
-          <button id="logoutBtn" class="hidden bg-white/20 hover:bg-white/30 text-white font-semibold px-3 py-2 rounded-lg">
-            Đăng xuất
-          </button>
-        </div>
+    <div class="max-w-7xl mx-auto px-4 lg:px-6 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold">🎓 Quản lý lương viên chức – Trường Tiểu học</h1>
+        <p class="text-white/90">Import Excel → Verify khác biệt → Cập nhật từng phần</p>
       </div>
+      <div class="text-sm opacity-90">Bản 1 file “dán đè”</div>
     </div>
   </header>
 
   <main class="max-w-7xl mx-auto px-4 lg:px-6 py-8 space-y-8">
     <!-- Import & Tools -->
     <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 p-6">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 class="text-xl font-semibold">📂 Import Excel</h2>
-          <p class="text-slate-500 text-sm">
-            Tự dò sheet, gộp tiêu đề nhiều hàng, chuẩn hóa cột &amp; có bước Verify trước khi hiển thị.
-          </p>
+          <h2 class="text-xl font-semibold">📂 Import Excel (có Verify)</h2>
+          <p class="text-slate-500 text-sm">So sánh với dữ liệu hiện tại, highlight khác biệt và cho phép chọn cập nhật.</p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2">
           <input id="excelFileInput" type="file" accept=".xlsx,.xls"
                  class="file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-600 file:text-white file:font-semibold
                         file:hover:bg-brand-700 file:cursor-pointer
                         px-3 py-2 border rounded-lg w-64" />
-          <button id="uploadExcelBtn"
-                  class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-lg">
-            📤 Tải lên
+          <button id="uploadExcelBtn" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-lg">
+            📤 Tải lên (Verify)
           </button>
-          <button id="exportExcelBtn"
-                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg">
-            📥 Xuất Excel
-          </button>
-          <button id="saveFirebaseBtn" disabled
-                  class="disabled:opacity-50 bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg">
-            ☁️ Lưu Firebase
-          </button>
-          <button id="loadFirebaseBtn" disabled
-                  class="disabled:opacity-50 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2 rounded-lg">
-            ☁️ Tải từ Firebase
+          <button id="exportExcelBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg">
+            📥 Xuất Excel (đang xem)
           </button>
         </div>
       </div>
 
-      <!-- Search + Chips -->
+      <!-- Search -->
       <div class="mt-5 grid md:grid-cols-2 gap-3">
-        <input id="searchInput"
-               class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-               placeholder="🔎 Tìm theo họ tên / chức danh / đơn vị / cấp học / hạng / mã CDNN..." />
+        <input id="searchInput" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600"
+               placeholder="🔎 Tìm theo họ tên / chức danh / đơn vị / hạng / mã CDNN..." />
         <div id="rankChips" class="flex flex-wrap gap-2"></div>
       </div>
+
+      <!-- Filters -->
+      <div class="mt-3 grid md:grid-cols-3 gap-3">
+        <select id="filterRole" class="px-3 py-2 border rounded-lg">
+          <option value="">— Tất cả chức danh —</option>
+        </select>
+        <select id="filterLevel" class="px-3 py-2 border rounded-lg">
+          <option value="">— Tất cả cấp học —</option>
+        </select>
+        <select id="filterRank" class="px-3 py-2 border rounded-lg">
+          <option value="">— Tất cả hạng —</option>
+        </select>
+      </div>
     </section>
 
-    <!-- KPI -->
+    <!-- KPIs -->
     <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 p-6">
       <h3 class="text-lg font-semibold mb-4">📊 Tổng quan</h3>
-      <div id="excelKpis" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <!-- renderKpis sẽ fill vào đây -->
-      </div>
-    </section>
-
-    <!-- Charts (nếu có) -->
-    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 p-6">
-      <h3 class="text-lg font-semibold mb-4">📈 Biểu đồ</h3>
-      <div id="chartsWrap" class="grid md:grid-cols-2 gap-6">
-        <canvas id="chartA" height="160"></canvas>
-        <canvas id="chartB" height="160"></canvas>
-      </div>
+      <div id="excelKpis" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
     </section>
 
     <!-- Table -->
@@ -132,46 +94,579 @@
         <h3 class="text-lg font-semibold">📋 Bảng dữ liệu</h3>
         <div class="text-sm text-slate-500">Bấm tiêu đề cột để sắp xếp</div>
       </div>
-      <div id="tableRoot" class="overflow-auto rounded-lg border border-slate-200">
-        <!-- renderTable sẽ vẽ toàn bộ bảng vào đây -->
-      </div>
+      <div id="tableRoot" class="overflow-auto rounded-lg border border-slate-200"></div>
     </section>
   </main>
 
   <!-- VERIFY MODAL -->
   <div id="verifyModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-5xl overflow-hidden">
       <div class="px-5 py-4 border-b flex items-center justify-between">
-        <h4 class="font-semibold">🔎 Kiểm tra dữ liệu trước khi import</h4>
+        <h4 class="font-semibold">🔎 Kiểm tra dữ liệu trước khi áp dụng</h4>
         <button id="closeVerifyBtn" class="px-2 py-1 rounded hover:bg-slate-100">✖</button>
       </div>
-
       <div class="p-5 space-y-4">
         <div id="verifySummary" class="text-sm"></div>
-
-        <div class="border rounded-lg overflow-hidden">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-100">
-              <tr id="verifyThead" class="text-left"></tr>
-            </thead>
-            <tbody id="verifyTbody" class="divide-y"></tbody>
-          </table>
-        </div>
-
-        <div id="verifyWarnings" class="text-sm text-amber-700"></div>
+        <div id="verifyBody" class="space-y-4"></div>
       </div>
-
       <div class="px-5 py-4 border-t flex items-center justify-end gap-2">
         <button id="cancelImportBtn" class="px-4 py-2 rounded border hover:bg-slate-50">Hủy</button>
-        <button id="confirmImportBtn" class="px-4 py-2 rounded bg-brand-600 hover:bg-brand-700 text-white">
-          Xác nhận import
-        </button>
+        <button id="confirmImportBtn" class="px-4 py-2 rounded bg-brand-600 hover:bg-brand-700 text-white">Xác nhận</button>
       </div>
     </div>
   </div>
 
-  <!-- App modules -->
-  <script type="module" src="js/main.js"></script>
+  <!-- APP -->
+  <script>
+  (function(){
+    // ===== Utils =====
+    const $ = (id)=>document.getElementById(id);
+    const on = (el, ev, fn)=>el && el.addEventListener(ev, fn);
+    const slug = s => String(s ?? "")
+      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/\s+/g," ").trim();
+
+    function parseNumber(x){
+      if (x==null || x==="") return null;
+      const n = Number(String(x).replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    }
+    function parseDate(v){
+      if (!v) return null;
+      if (typeof v === "number"){ const epoch = new Date(Date.UTC(1899,11,30)); return new Date(epoch.getTime() + v*86400000); }
+      const s = String(v).trim();
+      const iso = Date.parse(s);
+      if (!Number.isNaN(iso)) return new Date(iso);
+      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+      return null;
+    }
+    function unifyRole(raw){
+      const t = slug(raw);
+      if (!t) return "";
+      if (t.includes("pho hieu truong")) return "Phó Hiệu trưởng";
+      if (t.includes("hieu truong"))     return "Hiệu trưởng";
+      if (t.includes("tpt") || t.includes("tong phu trach")) return "TPT Đội";
+      if (t.includes("giao vien"))       return "Giáo viên";
+      return raw || "";
+    }
+    function splitCdnnHang(val){
+      const s = String(val ?? "").replace(/–/g,"-");
+      const [p1, p2] = s.split("-").map(x=>String(x||"").trim());
+      let level = p1 || "", rankCode = "", possibleDate = null;
+      if (p2){
+        if (/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(p2)) possibleDate = parseDate(p2);
+        else if (/^\d{3,}$/.test(p2)) rankCode = p2;
+      }
+      return { level, rankCode, possibleDate };
+    }
+
+    // ===== Parser Excel → rows (tolerant++) =====
+    async function parseExcelFile(file){
+      if (typeof XLSX === "undefined") throw new Error("Thiếu thư viện XLSX.");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:"array" });
+
+      const nrm = (s)=> String(s ?? "")
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+        .replace(/[^a-z0-9\s\/\-&]/g,"")
+        .replace(/\s+/g," ").trim();
+
+      const SYN = {
+        NAME: [
+          "ho va ten","ho ten","ho & ten","hovaten",
+          "ho va ten vien chuc","ho va ten giao vien","ho ten gv","ho ten vien chuc",
+          "ho ten (viet hoa)","ho ten (ghi chu in hoa)","ten giao vien","ten gv","ho va ten cbvc","ho va ten can bo"
+        ],
+        ROLE: ["chuc danh","chuc vu","chuc danh nghe nghiep","chuc danh nn"],
+        UNIT: ["don vi","donvi","truong","bo mon","to","to chuyen mon"],
+        CDNNHANG: ["cdnn/hang","cdnn","hang","cdnn - hang","cdnn hang"],
+        MACDNN: ["ma cdnn","ma so cdnn","ma so","ma so nn"],
+        HESO: ["he so","he so luong","he-so","he_so"],
+        NGAYHUONG: ["ngay huong","ngay hieu luc","ngay bat dau","ngay ap dung"],
+        CAPHOC: ["cap hoc","cap","bac hoc","trinh do day"],
+        GHICHU: ["ghi chu","ghi chú","note","ghi chu khac"]
+      };
+
+      const looksLikeName = (s)=>{
+        s = String(s??"").trim();
+        if (!s) return false;
+        if (/\d/.test(s)) return false;
+        const words = s.split(/\s+/);
+        return words.length>=2 && s.length<=60;
+      };
+
+      function isMatch(cellNorm, synList){ return synList.some(syn => cellNorm.includes(syn)); }
+
+      function guessNameCol(rows, fromRow, maxCols){
+        let bestIdx = -1, bestScore = -1;
+        for (let c=0;c<maxCols;c++){
+          let score = 0, seen = 0;
+          for (let r=fromRow;r<Math.min(rows.length, fromRow+40); r++){
+            const v = rows[r]?.[c];
+            if (looksLikeName(v)) score++;
+            if (String(v??"").trim()) seen++;
+          }
+          const ratio = seen ? score/seen : 0;
+          if (ratio > bestScore){ bestScore = ratio; bestIdx = c; }
+        }
+        return (bestScore >= 0.35) ? bestIdx : -1;
+      }
+
+      function parseSheet(ws){
+        const rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:true });
+        if (!rows.length) return [];
+
+        // 1) Tìm header chuẩn
+        let headerRowIdx = -1, map = {};
+        for (let i=0;i<Math.min(rows.length,100);i++){
+          const row = rows[i] || [];
+          const cells = row.map(nrm);
+          const m = {};
+          cells.forEach((cn, idx)=>{
+            if (cn && m.NAME==null     && (isMatch(cn,SYN.NAME) || (cn.includes("ho") && cn.includes("ten")))) m.NAME = idx;
+            if (cn && m.ROLE==null     && isMatch(cn,SYN.ROLE))     m.ROLE = idx;
+            if (cn && m.UNIT==null     && isMatch(cn,SYN.UNIT))     m.UNIT = idx;
+            if (cn && m.CDNNHANG==null && isMatch(cn,SYN.CDNNHANG)) m.CDNNHANG = idx;
+            if (cn && m.MACDNN==null   && isMatch(cn,SYN.MACDNN))   m.MACDNN = idx;
+            if (cn && m.HESO==null     && isMatch(cn,SYN.HESO))     m.HESO = idx;
+            if (cn && m.NGAYHUONG==null&& isMatch(cn,SYN.NGAYHUONG))m.NGAYHUONG = idx;
+            if (cn && m.CAPHOC==null   && isMatch(cn,SYN.CAPHOC))   m.CAPHOC = idx;
+            if (cn && m.GHICHU==null   && isMatch(cn,SYN.GHICHU))   m.GHICHU = idx;
+          });
+          if (m.NAME != null){ headerRowIdx = i; map = m; break; }
+        }
+
+        // 2) Không có header → đoán cột tên & dò dòng dữ liệu
+        if (headerRowIdx === -1){
+          const maxCols = Math.max(...rows.slice(0,30).map(r=>r?.length||0), 0);
+          const nameCol = guessNameCol(rows, 0, maxCols);
+          if (nameCol < 0) return [];
+          let start = 0;
+          for (let i=0;i<Math.min(rows.length,120);i++){
+            if (looksLikeName(rows[i]?.[nameCol])) { start = i; break; }
+          }
+          const out=[];
+          for (let r=start; r<rows.length; r++){
+            const row = rows[r] || [];
+            const name = String(row[nameCol] ?? "").trim();
+            if (!looksLikeName(name)) continue;
+
+            let level="", rankCode="", possibleDate=null;
+            for (let c=0;c<row.length;c++){
+              if (c===nameCol) continue;
+              const v = row[c];
+              if (v==null) continue;
+              const s = String(v);
+              if (s.includes("-") || /cdnn|hang/i.test(s)){
+                const x = splitCdnnHang(s);
+                level = level || x.level;
+                rankCode = rankCode || x.rankCode;
+                possibleDate = possibleDate || x.possibleDate;
+              }
+            }
+
+            out.push({
+              name,
+              role: "", unit: "",
+              level, rank:"", rankCode,
+              coefficient: null,
+              effectiveDate: possibleDate,
+              note: ""
+            });
+          }
+          return out;
+        }
+
+        // 3) Có header → parse đầy đủ
+        const out=[];
+        for (let r=headerRowIdx+1; r<rows.length; r++){
+          const row = rows[r] || [];
+          const name = String(row[map.NAME] ?? "").trim();
+          if (!name) continue;
+
+          const rawRole   = map.ROLE!=null     ? row[map.ROLE]     : "";
+          const unit      = map.UNIT!=null     ? row[map.UNIT]     : "";
+          const cdnnHang  = map.CDNNHANG!=null ? row[map.CDNNHANG] : "";
+          const maCdnn    = map.MACDNN!=null   ? row[map.MACDNN]   : "";
+          const coef      = map.HESO!=null     ? parseNumber(row[map.HESO]) : null;
+          const ngayHuong = map.NGAYHUONG!=null? row[map.NGAYHUONG]: "";
+          const levelCol  = map.CAPHOC!=null   ? row[map.CAPHOC]   : "";
+          const note      = map.GHICHU!=null   ? row[map.GHICHU]   : "";
+
+          let { level, rankCode, possibleDate } = splitCdnnHang(cdnnHang);
+          if (!level && levelCol) level = String(levelCol);
+          if (!rankCode && maCdnn) rankCode = String(maCdnn);
+          const effectiveDate = parseDate(ngayHuong) || possibleDate || null;
+
+          out.push({
+            name,
+            role: unifyRole(rawRole),
+            unit: unit || "",
+            level: level || "",
+            rank: "",
+            rankCode: rankCode || "",
+            coefficient: coef,
+            effectiveDate,
+            note: note || ""
+          });
+        }
+        return out;
+      }
+
+      // duyệt tất cả sheet
+      for (const sn of wb.SheetNames){
+        const ws = wb.Sheets[sn];
+        const parsed = parseSheet(ws);
+        if (parsed.length) return parsed;
+      }
+      return [];
+    }
+
+    // ===== Diff & Verify =====
+    const FIELDS = [
+      ["role","Chức danh"], ["unit","Đơn vị"], ["level","Cấp học"],
+      ["rank","Hạng"], ["rankCode","Mã CDNN"], ["coefficient","Hệ số"],
+      ["effectiveDate","Ngày hưởng"], ["note","Ghi chú"]
+    ];
+    const rowKey = r => `${slug(r?.name)}|${slug(r?.unit)}`;
+    const normVal = v => v instanceof Date ? v.toISOString().slice(0,10)
+                         : (typeof v==="number" ? (Number.isFinite(v)?v:"") : (v==null?"":String(v).trim()));
+
+    function diffDatasets(curRows, incRows){
+      const curMap = new Map(curRows.map(r=>[rowKey(r), r]));
+      const incMap = new Map(incRows.map(r=>[rowKey(r), r]));
+      const added=[], removed=[], updated=[];
+
+      for (const [k, inc] of incMap.entries()){
+        const cur = curMap.get(k);
+        if (!cur){ added.push(inc); continue; }
+        let has=false; const fields={};
+        for (const [key,label] of FIELDS){
+          const a=normVal(cur[key]), b=normVal(inc[key]);
+          const diff = a!==b;
+          if (diff) has=true;
+          fields[key] = { label, current:a, incoming:b, changed:diff };
+        }
+        if (has) updated.push({key:k, name:inc.name, fields, _cur:cur, _inc:inc});
+      }
+      for (const [k, cur] of curMap.entries()){
+        if (!incMap.has(k)) removed.push(cur);
+      }
+      return { added, removed, updated };
+    }
+
+    function showVerifyDiffModal(currentRows, incomingRows, onApply, onCancel){
+      const modal = $("verifyModal");
+      const sumEl = $("verifySummary");
+      const body = $("verifyBody");
+      const { added, removed, updated } = diffDatasets(currentRows, incomingRows);
+
+      const selAdd = new Map(added.map(r => [rowKey(r), true]));
+      const selRem = new Map(removed.map(r => [rowKey(r), false]));
+      const selUpd = new Map(updated.map(u => [u.key, Object.fromEntries(Object.entries(u.fields).map(([k,f])=>[k, !!f.changed]))]));
+
+      sumEl.innerHTML = `
+        <div class="flex flex-wrap gap-3 text-sm">
+          <span class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700">Thêm mới: ${added.length}</span>
+          <span class="px-3 py-1 rounded-full bg-amber-50 text-amber-700">Thay đổi: ${updated.length}</span>
+          <span class="px-3 py-1 rounded-full bg-rose-50 text-rose-700">Xoá: ${removed.length}</span>
+        </div>`;
+
+      const section = (title, content, extra="") => `
+        <div class="rounded-xl border border-slate-200 overflow-hidden">
+          <div class="px-4 py-2 bg-slate-50 flex items-center justify-between">
+            <div class="font-semibold">${title}</div>
+            ${extra}
+          </div>
+          <div class="p-4">${content}</div>
+        </div>`;
+
+      const renderAdded = () => added.length
+        ? added.map(r=>`
+          <label class="flex items-center gap-3 py-2 border-b last:border-0">
+            <input type="checkbox" class="addRow accent-indigo-600" data-k="${rowKey(r)}" checked />
+            <div><div class="font-medium">${r.name}</div><div class="text-xs text-slate-500">${r.role||""} • ${r.unit||""}</div></div>
+          </label>`).join("")
+        : `<div class="text-slate-500 text-sm">Không có bản ghi mới.</div>`;
+
+      const renderRemoved = () => removed.length
+        ? removed.map(r=>`
+          <label class="flex items-center gap-3 py-2 border-b last:border-0">
+            <input type="checkbox" class="remRow accent-rose-600" data-k="${rowKey(r)}" />
+            <div><div class="font-medium">${r.name}</div><div class="text-xs text-slate-500">${r.role||""} • ${r.unit||""}</div></div>
+          </label>`).join("")
+        : `<div class="text-slate-500 text-sm">Không có bản ghi cần xoá.</div>`;
+
+      const renderUpdated = () => updated.length
+        ? updated.map(u=>{
+            const rows = Object.entries(u.fields).map(([key,f])=>{
+              const checked = selUpd.get(u.key)?.[key];
+              const hl = f.changed ? "diff-cell" : "";
+              return `
+              <tr class="border-b last:border-0">
+                <td class="px-2 py-1 text-xs text-slate-500">${f.label}</td>
+                <td class="px-2 py-1">${f.current ?? ""}</td>
+                <td class="px-2 py-1 ${hl}">${f.incoming ?? ""}</td>
+                <td class="px-2 py-1 text-center">
+                  <input type="checkbox" class="updCell accent-emerald-600" data-k="${u.key}" data-field="${key}" ${checked?'checked':''}/>
+                </td>
+              </tr>`;
+            }).join("");
+            return `
+              <details class="rounded-lg border border-slate-200 mb-3" open>
+                <summary class="px-3 py-2 cursor-pointer bg-slate-50 flex items-center justify-between">
+                  <div><span class="font-semibold">${u.name}</span>
+                  <span class="text-xs text-slate-500"> • ${u._inc.role||""} • ${u._inc.unit||""}</span></div>
+                  <div class="text-xs text-slate-500">Tick ô muốn cập nhật</div>
+                </summary>
+                <div class="p-2 overflow-auto">
+                  <table class="min-w-full text-sm">
+                    <thead class="bg-slate-100"><tr>
+                      <th class="px-2 py-1 text-left text-xs">Trường</th>
+                      <th class="px-2 py-1 text-left text-xs">Hiện tại</th>
+                      <th class="px-2 py-1 text-left text-xs">Theo file</th>
+                      <th class="px-2 py-1 text-left text-xs">Cập nhật</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                </div>
+              </details>`;
+          }).join("")
+        : `<div class="text-slate-500 text-sm">Không có bản ghi thay đổi.</div>`;
+
+      body.innerHTML = `
+        ${section("🆕 Bản ghi mới", renderAdded(),
+          added.length?'<button id="toggleAddAll" class="text-xs px-2 py-1 rounded bg-slate-200 hover:bg-slate-300">Chọn/Bỏ tất cả</button>':'')}
+        ${section("✏️ Bản ghi thay đổi", renderUpdated())}
+        ${section("🗑️ Bản ghi có thể xoá (tùy chọn)", renderRemoved(),
+          removed.length?'<button id="toggleRemAll" class="text-xs px-2 py-1 rounded bg-slate-200 hover:bg-slate-300">Chọn/Bỏ tất cả</button>':'')}
+      `;
+
+      body.addEventListener("change", (e)=>{
+        const t=e.target;
+        if (t.classList.contains("addRow")) selAdd.set(t.dataset.k, t.checked);
+        if (t.classList.contains("remRow")) selRem.set(t.dataset.k, t.checked);
+        if (t.classList.contains("updCell")){
+          const k=t.dataset.k, f=t.dataset.field;
+          const row = selUpd.get(k)||{}; row[f]=t.checked; selUpd.set(k,row);
+        }
+      });
+      on($("toggleAddAll"),"click",()=>{
+        const all=[...body.querySelectorAll(".addRow")];
+        const needCheck = all.some(i=>!i.checked);
+        all.forEach(i=>{i.checked=needCheck; selAdd.set(i.dataset.k, needCheck);});
+      });
+      on($("toggleRemAll"),"click",()=>{
+        const all=[...body.querySelectorAll(".remRow")];
+        const needCheck = all.some(i=>!i.checked);
+        all.forEach(i=>{i.checked=needCheck; selRem.set(i.dataset.k, needCheck);});
+      });
+
+      $("verifyModal").classList.remove("hidden");
+      $("verifyModal").classList.add("flex");
+
+      const close = ()=>{$("verifyModal").classList.add("hidden");};
+      on($("closeVerifyBtn"),"click",()=>{close(); onCancel&&onCancel();});
+      on($("cancelImportBtn"),"click",()=>{close(); onCancel&&onCancel();});
+      on($("confirmImportBtn"),"click",()=>{
+        const curMap = new Map(currentRows.map(r=>[rowKey(r), {...r}]));
+        for (const u of updated){
+          const k=u.key; const cur=curMap.get(k)||{};
+          const choose = selUpd.get(k)||{};
+          for (const [field] of Object.entries(u.fields)){
+            if (choose[field]) cur[field] = u._inc[field] ?? null;
+          }
+          curMap.set(k,cur);
+        }
+        for (const r of added){ if (selAdd.get(rowKey(r))) curMap.set(rowKey(r), {...r}); }
+        for (const r of removed){ const k=rowKey(r); if (selRem.get(k)) curMap.delete(k); }
+        close(); onApply && onApply(Array.from(curMap.values()));
+      });
+    }
+
+    // ===== State + Render =====
+    const STORE_KEY="qlLuongDatasetV1";
+    const saveCache = rows => { try{localStorage.setItem(STORE_KEY, JSON.stringify(rows));}catch{} };
+    const loadCache = () => { try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch{return[];} };
+
+    function uniqueVals(rows, key){
+      return [...new Set(rows.map(r=>(r[key]||"").trim()).filter(Boolean))]
+        .sort((a,b)=>a.localeCompare(b,"vi",{sensitivity:"base"}));
+    }
+    function populateFilters(rows){
+      const roles=uniqueVals(rows,"role"), levels=uniqueVals(rows,"level"), ranks=uniqueVals(rows,"rank");
+      const fill=(sel, arr, label)=>{
+        if (!sel) return;
+        const cur=sel.value;
+        sel.innerHTML = `<option value="">— Tất cả ${label} —</option>` + arr.map(v=>`<option>${v}</option>`).join("");
+        if (arr.includes(cur)) sel.value=cur; else sel.value="";
+      };
+      fill($("filterRole"), roles, "chức danh");
+      fill($("filterLevel"), levels, "cấp học");
+      fill($("filterRank"), ranks, "hạng");
+    }
+
+    function renderKpis(rows){
+      const total = rows.length;
+      const countBy = (fn)=>rows.reduce((m,r)=>{const k=fn(r); m[k]=(m[k]||0)+1; return m;},{});
+      const roles = countBy(r=>(r.role||"").toLowerCase());
+      const sum = k=> (roles[k]||0);
+      const html = [
+        ["Tổng bản ghi", total, "bg-indigo-50 text-indigo-700"],
+        ["Giáo viên", sum("giáo viên")+sum("giao vien"), "bg-emerald-50 text-emerald-700"],
+        ["Hiệu trưởng", sum("hiệu trưởng")+sum("hieu truong"), "bg-rose-50 text-rose-700"],
+        ["Phó Hiệu trưởng", sum("phó hiệu trưởng")+sum("pho hieu truong"), "bg-amber-50 text-amber-700"]
+      ].map(([label,val,cls])=>`
+        <div class="p-4 rounded-xl border ${cls} border-slate-100">
+          <div class="text-sm opacity-70">${label}</div>
+          <div class="text-2xl font-bold mt-1">${val}</div>
+        </div>`).join("");
+      $("excelKpis").innerHTML = html;
+      const byRank = rows.reduce((m,r)=>{const k=r.rank||"Khác"; m[k]=(m[k]||0)+1; return m;}, {});
+      $("rankChips").innerHTML = Object.entries(byRank).sort((a,b)=>b[1]-a[1]).slice(0,8)
+        .map(([k,v])=>`<span class="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs">${k}: ${v}</span>`).join("");
+    }
+
+    function renderTable(rows){
+      const root=$("tableRoot"); if(!root) return;
+      const headers = [
+        ["name","Họ và tên"], ["role","Chức danh"], ["unit","Đơn vị"],
+        ["level","Cấp học"], ["rank","Hạng"], ["rankCode","Mã CDNN"],
+        ["coefficient","Hệ số"], ["effectiveDate","Ngày hưởng"], ["note","Ghi chú"]
+      ];
+      const thead = `
+        <thead class="bg-slate-50 sticky top-0">
+          <tr>
+          ${headers.map(([k,l])=>`<th data-sort="${k}" class="px-3 py-2 text-left text-sm font-semibold text-slate-700 cursor-pointer">${l}</th>`).join("")}
+          </tr>
+        </thead>`;
+      const body = rows.map(r=>`
+        <tr class="border-b hover:bg-slate-50">
+          <td class="px-3 py-2">${escapeHtml(r.name)}</td>
+          <td class="px-3 py-2">${escapeHtml(r.role)}</td>
+          <td class="px-3 py-2">${escapeHtml(r.unit)}</td>
+          <td class="px-3 py-2">${escapeHtml(r.level)}</td>
+          <td class="px-3 py-2">${escapeHtml(r.rank)}</td>
+          <td class="px-3 py-2">${escapeHtml(r.rankCode)}</td>
+          <td class="px-3 py-2">${r.coefficient ?? ""}</td>
+          <td class="px-3 py-2">${r.effectiveDate ? new Date(r.effectiveDate).toLocaleDateString("vi-VN") : ""}</td>
+          <td class="px-3 py-2">${escapeHtml(r.note)}</td>
+        </tr>`).join("");
+      root.innerHTML = `<table class="min-w-full text-sm">${thead}<tbody>${body||`<tr><td colspan="9" class="px-3 py-6 text-slate-500">Chưa có dữ liệu</td></tr>`}</tbody></table>`;
+      root.querySelectorAll("[data-sort]").forEach(th=>{
+        th.addEventListener("click", ()=>{
+          const key=th.dataset.sort;
+          if (sort.key===key) sort.dir*=-1; else {sort.key=key; sort.dir=1;}
+          refresh();
+        });
+      });
+    }
+    const escapeHtml = s => (s==null?"":String(s)).replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+    function applySearch(rows, q){
+      const s = slug(q||""); if (!s) return [...rows];
+      return rows.filter(r=>{
+        const hay=[r.name,r.role,r.unit,r.level,r.rank,r.rankCode,r.coefficient,r.note].map(x=>slug(String(x??""))).join(" ");
+        return hay.includes(s);
+      });
+    }
+    function applyFilters(rows){
+      return rows.filter(r=>
+        (!filters.role  || r.role  === filters.role) &&
+        (!filters.level || r.level === filters.level) &&
+        (!filters.rank  || r.rank  === filters.rank)
+      );
+    }
+    function applySort(rows){
+      const {key,dir}=sort;
+      if (!key) return [...rows];
+      const a=[...rows];
+      a.sort((x,y)=>{
+        const va=x?.[key], vb=y?.[key];
+        if (va==null && vb==null) return 0;
+        if (va==null) return 1; if (vb==null) return -1;
+        if (va instanceof Date || vb instanceof Date) return dir*((va?.getTime?.()||0)-(vb?.getTime?.()||0));
+        if (typeof va==="number" || typeof vb==="number") return dir*((Number(va)||0)-(Number(vb)||0));
+        return dir*String(va).localeCompare(String(vb),"vi",{sensitivity:"base"});
+      });
+      return a;
+    }
+
+    // ===== App state & events =====
+    let fullRecords = loadCache();
+    let sort = { key:null, dir:1 };
+    let filters = { role:"", level:"", rank:"" };
+
+    function populateAndRefresh(){
+      populateFilters(fullRecords);
+      refresh();
+    }
+    function refresh(){
+      const q=$("searchInput")?.value||"";
+      let rows=[...fullRecords];
+      rows=applyFilters(rows);
+      rows=applySearch(rows,q);
+      rows=applySort(rows);
+      renderKpis(rows);
+      renderTable(rows);
+    }
+
+    on($("uploadExcelBtn"), "click", async ()=>{
+      const file = $("excelFileInput")?.files?.[0];
+      if (!file){ alert("Vui lòng chọn file Excel!"); return; }
+      try{
+        const parsed = await parseExcelFile(file);
+        if (!parsed.length){ alert("⚠️ Không đọc được bản ghi nào từ file. Kiểm tra tiêu đề/sheet hoặc gửi ảnh header để mình bổ sung mapping."); return; }
+        showVerifyDiffModal(fullRecords, parsed, (merged)=>{
+          fullRecords = merged;
+          saveCache(fullRecords);
+          sort = { key:null, dir:1 };
+          filters = { role:"", level:"", rank:"" };
+          $("searchInput").value="";
+          populateAndRefresh();
+          alert(`✅ Đã áp dụng thay đổi. Tổng bản ghi: ${fullRecords.length}`);
+        }, ()=>{});
+      }catch(err){
+        console.error(err);
+        alert("Lỗi import: " + (err?.message||err));
+      }
+    });
+
+    on($("exportExcelBtn"), "click", ()=>{
+      if (!fullRecords?.length) { alert("Không có dữ liệu để xuất."); return; }
+      if (typeof XLSX === "undefined"){ alert("Thiếu thư viện XLSX."); return; }
+      const data = fullRecords.map(r=>({
+        "Họ và tên": r.name || "",
+        "Chức danh": r.role || "",
+        "Đơn vị": r.unit || "",
+        "Cấp học": r.level || "",
+        "Hạng": r.rank || "",
+        "Mã CDNN": r.rankCode || "",
+        "Hệ số": r.coefficient ?? "",
+        "Ngày hưởng": r.effectiveDate ? new Date(r.effectiveDate).toISOString().slice(0,10) : "",
+        "Ghi chú": r.note || ""
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Du lieu");
+      XLSX.writeFile(wb, `DuLieu_${new Date().toISOString().slice(0,10)}.xlsx`);
+    });
+
+    on($("searchInput"), "input", refresh);
+    on($("filterRole"), "change", e=>{filters.role=e.target.value||""; refresh();});
+    on($("filterLevel"),"change", e=>{filters.level=e.target.value||""; refresh();});
+    on($("filterRank"), "change", e=>{filters.rank=e.target.value||""; refresh();});
+
+    // Init
+    window.addEventListener("DOMContentLoaded", ()=>{
+      populateAndRefresh();
+      if (typeof XLSX === "undefined") console.error("❌ XLSX chưa tải. Kiểm tra CDN trong <head>.");
+    });
+
+    window.addEventListener("error", e=>console.error("JS error:", e?.error?.message || e.message || e));
+  })();
+  </script>
 </body>
 </html>

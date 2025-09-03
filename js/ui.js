@@ -8,7 +8,7 @@ export function renderKpis(rows, chipsHost, kpiHost) {
   const giaoVien = sumKeys(roles, ["giao vien","giáo viên"]);
 
   kpiHost.innerHTML = `
-    ${kpi("Tổng bản ghi", total, "bg-indigo-50 text-indigo-700")}
+    ${kpi("Tổng số lượng", total, "bg-indigo-50 text-indigo-700")}
     ${kpi("Giáo viên", giaoVien, "bg-emerald-50 text-emerald-700")}
     ${kpi("Hiệu trưởng", hieuTruong, "bg-rose-50 text-rose-700")}
     ${kpi("Phó Hiệu trưởng", phoHieuTruong, "bg-amber-50 text-amber-700")}
