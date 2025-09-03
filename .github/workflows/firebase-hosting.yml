@@ -1,16 +1,27 @@
-name: Deploy to Firebase Hosting
-'on':
-  push:
-    branches:
-      - main
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - uses: actions/setup-node@v4
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUONG }}'
-          channelId: live
-          projectId: tieu-hoc-quan-ly-luong
+          node-version: 20
+
+      - name: Verify firebase.json exists
+        run: |
+          ls -la
+          test -f firebase.json || (echo "❌ Missing firebase.json at repo root" && exit 1)
+          cat firebase.json
+
+      - name: Write service account to file
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUONG }}' > "${RUNNER_TEMP}/sa.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/sa.json','utf8')); console.log('✅ SA JSON OK')"
+
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools
+
+      - name: Deploy with debug
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: firebase deploy --only hosting --project tieu-hoc-quan-ly-luong --non-interactive --debug
