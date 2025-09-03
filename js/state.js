@@ -1,47 +1,49 @@
-export const STORAGE_KEY = "gv_records_cached_v4";
+const KEY = "qlLuongDatasetV1";
 
-export function saveCache(records) {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(
-      records.map((r) => ({
-        ...r,
-        effectiveDate: r.effectiveDate ? r.effectiveDate.toISOString() : null,
-      }))
-    )
-  );
+const slug = (s) => String(s ?? "")
+  .toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+
+export function saveCache(rows) {
+  try { localStorage.setItem(KEY, JSON.stringify(rows)); } catch {}
 }
 export function loadCache() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return arr.map((r) => ({ ...r, effectiveDate: r.effectiveDate ? new Date(r.effectiveDate) : null }));
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
 }
 
-export function applySearch(records, q) {
-  const key = (q || "").toLowerCase();
-  if (!key) return [...records];
-  return records.filter((r) =>
-    [r.name, r.role, r.unit, r.level, r.rank, r.rankCode].join(" ").toLowerCase().includes(key)
-  );
-}
-
-export function applySort(records, sortState) {
-  if (!sortState.key) return records;
-  const { key, dir } = sortState;
-  return [...records].sort((a, b) => {
-    const va = a[key] == null ? "" : a[key];
-    const vb = b[key] == null ? "" : b[key];
-    if (key === "coefficient") return ((va || 0) - (vb || 0)) * dir;
-    if (key === "effectiveDate") {
-      const da = a[key] ? a[key].getTime() : 0;
-      const db = b[key] ? b[key].getTime() : 0;
-      return (da - db) * dir;
-    }
-    return String(va).localeCompare(String(vb), "vi") * dir;
+export function applySearch(rows, q) {
+  const s = slug(q || "");
+  if (!s) return [...rows];
+  return rows.filter(r => {
+    const hay = [
+      r.name, r.role, r.unit, r.level, r.rank,
+      r.rankCode, r.coefficient, r.note
+    ].map(x => slug(String(x ?? ""))).join(" ");
+    return hay.includes(s);
   });
+}
+
+export function applySort(rows, sort) {
+  const { key, dir } = sort || {};
+  if (!key) return [...rows];
+  const arr = [...rows];
+  arr.sort((a,b)=>{
+    const va = a?.[key], vb = b?.[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    // ngày
+    if (va instanceof Date || vb instanceof Date) {
+      return dir * ((va?.getTime?.()||0) - (vb?.getTime?.()||0));
+    }
+    // số
+    if (typeof va === "number" || typeof vb === "number") {
+      return dir * ((Number(va)||0)-(Number(vb)||0));
+    }
+    // chuỗi
+    return dir * String(va).localeCompare(String(vb), "vi", { sensitivity:"base" });
+  });
+  return arr;
 }

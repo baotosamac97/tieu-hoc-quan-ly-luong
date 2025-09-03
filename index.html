@@ -26,10 +26,11 @@
     }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <!-- XLSX (bắt buộc cho import) -->
+
+  <!-- XLSX: bắt buộc để import Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 
-  <!-- (Optional) Chart.js nếu ui.js có dùng biểu đồ -->
+  <!-- (Tuỳ chọn) Chart.js nếu bạn vẽ biểu đồ -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 
   <style>
@@ -82,11 +83,11 @@
                         px-3 py-2 border rounded-lg w-64" />
           <button id="uploadExcelBtn"
                   class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-lg">
-            📤 Tải lên (có Verify)
+            📤 Tải lên
           </button>
           <button id="exportExcelBtn"
                   class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg">
-            📥 Xuất Excel (đang xem)
+            📥 Xuất Excel
           </button>
           <button id="saveFirebaseBtn" disabled
                   class="disabled:opacity-50 bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg">
