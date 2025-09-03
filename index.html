@@ -1,67 +1,171 @@
-<!-- ... phần đầu giữ nguyên ... -->
-<body class="bg-gray-50 min-h-screen">
-  <header class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-6 shadow-soft">
-    <div class="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-3">
-      <div>
-        <h1 class="text-3xl font-bold">🎓 Quản lý lương viên chức – Trường Tiểu học</h1>
-        <p class="opacity-90">Import Excel → Verify → KPI, biểu đồ & bảng</p>
-      </div>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🎓 Quản lý lương viên chức – Trường Tiểu học</title>
 
-      <!-- Auth box -->
-      <div class="flex items-center gap-2">
-        <span id="authInfo" class="text-sm opacity-90 hidden"></span>
-        <span id="roleBadge" class="text-xs px-2 py-1 rounded bg-black/20 hidden"></span>
-        <button id="loginBtn" class="bg-white text-indigo-700 font-semibold px-3 py-1.5 rounded">Đăng nhập Google</button>
-        <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 text-white font-semibold px-3 py-1.5 rounded hidden">Đăng xuất</button>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            brand: {
+              50:  '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- XLSX (bắt buộc cho import) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+
+  <!-- (Optional) Chart.js nếu ui.js có dùng biểu đồ -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+
+  <style>
+    html, body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-brand-600 to-indigo-600 text-white">
+    <div class="max-w-7xl mx-auto px-4 lg:px-6 py-6">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold leading-tight">
+            🎓 Quản lý lương viên chức – Trường Tiểu học
+          </h1>
+          <p class="mt-1 text-white/90">
+            Import Excel → Verify → KPI, biểu đồ &amp; bảng
+          </p>
+        </div>
+
+        <!-- Auth box -->
+        <div class="flex items-center gap-2">
+          <span id="authInfo" class="hidden text-sm bg-white/10 px-3 py-1.5 rounded-full"></span>
+          <span id="roleBadge" class="hidden text-xs font-semibold px-2 py-1 rounded bg-black/20"></span>
+          <button id="loginBtn" class="bg-white text-brand-700 hover:bg-slate-100 font-semibold px-3 py-2 rounded-lg shadow-sm">
+            Đăng nhập Google
+          </button>
+          <button id="logoutBtn" class="hidden bg-white/20 hover:bg-white/30 text-white font-semibold px-3 py-2 rounded-lg">
+            Đăng xuất
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="container mx-auto px-4 py-8">
-    <!-- Import + Tools -->
-    <div class="bg-white rounded-xl shadow-soft p-6 mb-6">
-      <div class="flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
+  <main class="max-w-7xl mx-auto px-4 lg:px-6 py-8 space-y-8">
+    <!-- Import & Tools -->
+    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 p-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 class="text-2xl font-bold text-gray-800">📂 Import Excel</h2>
-          <p class="text-gray-600">Tự dò sheet, gộp tiêu đề nhiều hàng, chuẩn hóa cột & có bước Verify trước khi hiển thị.</p>
+          <h2 class="text-xl font-semibold">📂 Import Excel</h2>
+          <p class="text-slate-500 text-sm">
+            Tự dò sheet, gộp tiêu đề nhiều hàng, chuẩn hóa cột &amp; có bước Verify trước khi hiển thị.
+          </p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2">
-          <input id="excelFileInput" type="file" accept=".xlsx,.xls" class="px-3 py-2 border rounded-lg" />
-          <button id="uploadExcelBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg">📤 Tải lên (có Verify)</button>
-          <button id="exportExcelBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg">📥 Xuất Excel (đang xem)</button>
-          <button id="saveFirebaseBtn" class="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg" disabled>☁️ Lưu Firebase</button>
-          <button id="loadFirebaseBtn" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2 rounded-lg" disabled>☁️ Tải từ Firebase</button>
+          <input id="excelFileInput" type="file" accept=".xlsx,.xls"
+                 class="file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-600 file:text-white file:font-semibold
+                        file:hover:bg-brand-700 file:cursor-pointer
+                        px-3 py-2 border rounded-lg w-64" />
+          <button id="uploadExcelBtn"
+                  class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-lg">
+            📤 Tải lên (có Verify)
+          </button>
+          <button id="exportExcelBtn"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg">
+            📥 Xuất Excel (đang xem)
+          </button>
+          <button id="saveFirebaseBtn" disabled
+                  class="disabled:opacity-50 bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg">
+            ☁️ Lưu Firebase
+          </button>
+          <button id="loadFirebaseBtn" disabled
+                  class="disabled:opacity-50 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2 rounded-lg">
+            ☁️ Tải từ Firebase
+          </button>
         </div>
       </div>
-      <div class="mt-4 grid md:grid-cols-2 gap-3">
-        <input id="searchInput" class="px-3 py-2 border rounded-lg" placeholder="🔎 Tìm theo họ tên / chức danh / đơn vị / cấp học / hạng / mã CDNN..." />
+
+      <!-- Search + Chips -->
+      <div class="mt-5 grid md:grid-cols-2 gap-3">
+        <input id="searchInput"
+               class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+               placeholder="🔎 Tìm theo họ tên / chức danh / đơn vị / cấp học / hạng / mã CDNN..." />
         <div id="rankChips" class="flex flex-wrap gap-2"></div>
       </div>
-    </div>
+    </section>
 
-    <!-- ... Các section KPI/Chart/Table giữ nguyên ... -->
+    <!-- KPI -->
+    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 p-6">
+      <h3 class="text-lg font-semibold mb-4">📊 Tổng quan</h3>
+      <div id="excelKpis" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <!-- renderKpis sẽ fill vào đây -->
+      </div>
+    </section>
+
+    <!-- Charts (nếu có) -->
+    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 p-6">
+      <h3 class="text-lg font-semibold mb-4">📈 Biểu đồ</h3>
+      <div id="chartsWrap" class="grid md:grid-cols-2 gap-6">
+        <canvas id="chartA" height="160"></canvas>
+        <canvas id="chartB" height="160"></canvas>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">📋 Bảng dữ liệu</h3>
+        <div class="text-sm text-slate-500">Bấm tiêu đề cột để sắp xếp</div>
+      </div>
+      <div id="tableRoot" class="overflow-auto rounded-lg border border-slate-200">
+        <!-- renderTable sẽ vẽ toàn bộ bảng vào đây -->
+      </div>
+    </section>
   </main>
 
-  <!-- Modal VERIFY -->
-  <div id="verifyModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-soft max-w-4xl w-full">
-      <div class="p-4 border-b flex items-center justify-between">
-        <h3 class="text-lg font-bold">🔎 Kiểm tra dữ liệu trước khi import</h3>
-        <button id="closeVerifyBtn" class="px-2 py-1 border rounded">✖</button>
+  <!-- VERIFY MODAL -->
+  <div id="verifyModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden">
+      <div class="px-5 py-4 border-b flex items-center justify-between">
+        <h4 class="font-semibold">🔎 Kiểm tra dữ liệu trước khi import</h4>
+        <button id="closeVerifyBtn" class="px-2 py-1 rounded hover:bg-slate-100">✖</button>
       </div>
-      <div class="p-4 space-y-3">
+
+      <div class="p-5 space-y-4">
         <div id="verifySummary" class="text-sm"></div>
-        <div class="border rounded overflow-auto max-h-80">
-          <table class="min-w-full text-xs">
-            <thead class="bg-gray-100"><tr id="verifyThead"></tr></thead>
-            <tbody id="verifyTbody"></tbody>
+
+        <div class="border rounded-lg overflow-hidden">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100">
+              <tr id="verifyThead" class="text-left"></tr>
+            </thead>
+            <tbody id="verifyTbody" class="divide-y"></tbody>
           </table>
         </div>
+
         <div id="verifyWarnings" class="text-sm text-amber-700"></div>
       </div>
-      <div class="p-4 border-t flex items-center justify-end gap-2">
-        <button id="cancelImportBtn" class="px-4 py-2 border rounded">Hủy</button>
-        <button id="confirmImportBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Xác nhận import</button>
+
+      <div class="px-5 py-4 border-t flex items-center justify-end gap-2">
+        <button id="cancelImportBtn" class="px-4 py-2 rounded border hover:bg-slate-50">Hủy</button>
+        <button id="confirmImportBtn" class="px-4 py-2 rounded bg-brand-600 hover:bg-brand-700 text-white">
+          Xác nhận import
+        </button>
       </div>
     </div>
   </div>
