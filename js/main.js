@@ -9,6 +9,18 @@ const importBtn = document.getElementById('importBtn');
 const exportBtn = document.getElementById('exportBtn');
 const fileInput = document.getElementById('excelFile');
 const tableContainer = document.getElementById('tableContainer');
+const importStatus = document.getElementById('importStatus');
+
+function setStatus(message, type = 'info') {
+  if (!importStatus) return;
+  const cls = {
+    info: 'text-slate-600',
+    error: 'text-red-600',
+    success: 'text-green-600'
+  }[type] || 'text-slate-600';
+  importStatus.className = `text-sm mb-4 ${cls}`;
+  importStatus.textContent = message;
+}
 
 /**
  * Render the current `data` array as a table with editable cells. Tailwind classes are used
@@ -50,20 +62,22 @@ function renderTable() {
 async function handleImport() {
   const file = fileInput.files && fileInput.files[0];
   if (!file) {
-    alert('Vui lòng chọn file Excel trước!');
+    setStatus('Vui lòng chọn file Excel trước!', 'error');
     return;
   }
   try {
+    setStatus('Đang đọc file...', 'info');
     const parsed = await parseExcelFile(file);
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      alert('Không tìm thấy dữ liệu hợp lệ trong file.');
+      setStatus('Không tìm thấy dữ liệu hợp lệ trong file.', 'error');
       return;
     }
     data = parsed;
     renderTable();
+    setStatus(`Đã nhập ${data.length} dòng dữ liệu.`, 'success');
   } catch (err) {
     console.error('Lỗi đọc file:', err);
-    alert(`Định dạng file không hợp lệ: ${err.message}`);
+    setStatus(`Định dạng file không hợp lệ: ${err.message}`, 'error');
   }
 }
 

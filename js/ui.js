@@ -7,6 +7,7 @@ let editingIndex = -1;
 const fileInput = document.getElementById('excelFile');
 const importBtn = document.getElementById('importBtn');
 const exportBtn = document.getElementById('exportBtn');
+const importStatus = document.getElementById('importStatus');
 const kpiHost = document.getElementById('kpiHost');
 const tableRoot = document.getElementById('tableRoot');
 const searchInput = document.getElementById('searchInput');
@@ -28,6 +29,17 @@ const mRemain = document.getElementById('mRemain');
 const mRetire = document.getElementById('mRetire');
 const mCancel = document.getElementById('mCancel');
 const mSave = document.getElementById('mSave');
+
+function setStatus(message, type = 'info') {
+  if (!importStatus) return;
+  const cls = {
+    info: 'text-slate-600',
+    error: 'text-red-600',
+    success: 'text-green-600'
+  }[type] || 'text-slate-600';
+  importStatus.className = `text-sm mb-4 ${cls}`;
+  importStatus.textContent = message;
+}
 
 // init step options
 for (let i = 1; i <= 12; i++) {
@@ -211,9 +223,15 @@ function normalizeRow(row) {
 
 importBtn.addEventListener('click', async () => {
   const file = fileInput.files && fileInput.files[0];
-  if (!file) { alert('Vui lòng chọn file Excel trước!'); return; }
+  if (!file) { setStatus('Vui lòng chọn file Excel trước!', 'error'); return; }
   try {
+    setStatus('Đang đọc file...', 'info');
     const parsed = await parseExcelFile(file);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      setStatus('Không tìm thấy dữ liệu trong file Excel.', 'error');
+      return;
+    }
+    setStatus('Đang xử lý dữ liệu...', 'info');
     data = parsed.map(raw => {
       const r = normalizeRow(raw);
       const obj = {
@@ -232,9 +250,10 @@ importBtn.addEventListener('click', async () => {
     });
     populateRoleOptions();
     render();
+    setStatus(`Đã nhập ${data.length} dòng dữ liệu.`, 'success');
   } catch (e) {
     console.error(e);
-    alert('Lỗi đọc file: ' + e.message);
+    setStatus('Lỗi đọc file: ' + e.message, 'error');
   }
 });
 
