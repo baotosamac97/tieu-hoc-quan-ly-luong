@@ -1,116 +1,274 @@
-/* UI renderers tối thiểu: KPI + Bảng + Export */
+import { parseExcelFile } from './parser.js';
 
-export function renderKpis(rows, chipsHost, kpiHost) {
-  const total = rows.length;
-  const roles = countBy(rows, r => (r.role||"").toLowerCase());
-  const hieuTruong = sumKeys(roles, ["hieu truong","hiệu trưởng"]);
-  const phoHieuTruong = sumKeys(roles, ["pho hieu truong","phó hiệu trưởng"]);
-  const giaoVien = sumKeys(roles, ["giao vien","giáo viên"]);
+let data = [];
+let view = [];
+let editingIndex = -1;
 
-  kpiHost.innerHTML = `
-    ${kpi("Tổng số lượng", total, "bg-indigo-50 text-indigo-700")}
-    ${kpi("Giáo viên", giaoVien, "bg-emerald-50 text-emerald-700")}
-    ${kpi("Hiệu trưởng", hieuTruong, "bg-rose-50 text-rose-700")}
-    ${kpi("Phó Hiệu trưởng", phoHieuTruong, "bg-amber-50 text-amber-700")}
-  `;
+const fileInput = document.getElementById('excelFile');
+const importBtn = document.getElementById('importBtn');
+const exportBtn = document.getElementById('exportBtn');
+const kpiHost = document.getElementById('kpiHost');
+const tableRoot = document.getElementById('tableRoot');
+const searchInput = document.getElementById('searchInput');
+const filterRole = document.getElementById('filterRole');
+const filterStep = document.getElementById('filterStep');
+const filterFrom = document.getElementById('filterFrom');
+const filterTo = document.getElementById('filterTo');
 
-  // chips theo hạng (nếu bạn muốn filter sau này)
-  const byRank = countBy(rows, r => r.rank || "Khác");
-  chipsHost.innerHTML = Object.entries(byRank)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,8)
-    .map(([k,v])=>`
-      <span class="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs">${k}: ${v}</span>
-    `).join("");
+const editModal = document.getElementById('editModal');
+const mName = document.getElementById('mName');
+const mRole = document.getElementById('mRole');
+const mStep = document.getElementById('mStep');
+const mCoef = document.getElementById('mCoef');
+const mCurrent = document.getElementById('mCurrent');
+const mBirth = document.getElementById('mBirth');
+const mNote = document.getElementById('mNote');
+const mNext = document.getElementById('mNext');
+const mRemain = document.getElementById('mRemain');
+const mRetire = document.getElementById('mRetire');
+const mCancel = document.getElementById('mCancel');
+const mSave = document.getElementById('mSave');
+
+// init step options
+for (let i = 1; i <= 12; i++) {
+  const opt = document.createElement('option');
+  opt.value = String(i);
+  opt.textContent = `Bậc ${i}`;
+  filterStep.appendChild(opt);
 }
+
+function render() {
+  view = getFiltered();
+  renderKpis(view);
+  renderTable(view);
+  populateRoleOptions();
+}
+
+function getFiltered() {
+  let rows = data.map((r, i) => ({ ...r, _idx: i }));
+  const q = searchInput.value.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
+  }
+  const role = filterRole.value;
+  if (role) rows = rows.filter(r => r.role === role);
+  const step = filterStep.value;
+  if (step) rows = rows.filter(r => String(r.salaryStep) === step);
+  const from = filterFrom.value ? new Date(filterFrom.value) : null;
+  const to = filterTo.value ? new Date(filterTo.value) : null;
+  if (from) rows = rows.filter(r => r.nextDate && new Date(r.nextDate) >= from);
+  if (to) rows = rows.filter(r => r.nextDate && new Date(r.nextDate) <= to);
+  return rows;
+}
+
+function populateRoleOptions() {
+  const current = filterRole.value;
+  const roles = Array.from(new Set(data.map(r => r.role).filter(Boolean)));
+  filterRole.innerHTML = '<option value="">Chức danh</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
+  filterRole.value = current;
+}
+
+function renderKpis(rows) {
+  const total = rows.length;
+  const roles = countBy(rows, r => (r.role || '').toLowerCase());
+  const giaoVien = sumKeys(roles, ['giao vien', 'giáo viên']);
+  const lanhDao = sumKeys(roles, ['hieu truong', 'hiệu trưởng', 'pho hieu truong', 'phó hiệu trưởng']);
+  kpiHost.innerHTML = `
+    ${kpi('Tổng nhân sự', total, 'bg-indigo-50 text-indigo-700')}
+    ${kpi('Giáo viên', giaoVien, 'bg-emerald-50 text-emerald-700')}
+    ${kpi('Lãnh đạo', lanhDao, 'bg-amber-50 text-amber-700')}
+  `;
+}
+
+function renderTable(rows) {
+  const headers = [
+    ['name', 'Họ tên'],
+    ['role', 'Chức danh'],
+    ['salaryStep', 'Bậc lương'],
+    ['coefficient', 'Hệ số'],
+    ['currentDate', 'Ngày hưởng hiện tại'],
+    ['nextDate', 'Ngày tăng lương kế'],
+    ['monthsLeft', 'Còn lại (tháng)'],
+    ['retireDate', 'Ngày nghỉ hưu'],
+    ['note', 'Ghi chú']
+  ];
+  const thead = `<thead class="bg-slate-50 sticky top-0"><tr>
+    ${headers.map(([k, l]) => `<th class="px-3 py-2 text-left text-sm font-semibold text-slate-700">${l}</th>`).join('')}
+  </tr></thead>`;
+  const rowsHtml = rows.map(r => `
+    <tr class="border-b hover:bg-slate-50 cursor-pointer" data-idx="${r._idx}">
+      <td class="px-3 py-2">${safe(r.name)}</td>
+      <td class="px-3 py-2">${safe(r.role)}</td>
+      <td class="px-3 py-2">${r.salaryStep ?? ''}</td>
+      <td class="px-3 py-2">${r.coefficient ?? ''}</td>
+      <td class="px-3 py-2">${r.currentDate ? new Date(r.currentDate).toLocaleDateString('vi-VN') : ''}</td>
+      <td class="px-3 py-2">${r.nextDate ? new Date(r.nextDate).toLocaleDateString('vi-VN') : ''}</td>
+      <td class="px-3 py-2">${r.monthsLeft ?? ''}</td>
+      <td class="px-3 py-2">${r.retireDate ? new Date(r.retireDate).toLocaleDateString('vi-VN') : ''}</td>
+      <td class="px-3 py-2">${safe(r.note)}</td>
+    </tr>`).join('');
+  tableRoot.innerHTML = `<table class="min-w-full text-sm">${thead}<tbody>${rowsHtml || `<tr><td class="px-3 py-6 text-slate-500" colspan="9">Chưa có dữ liệu</td></tr>`}</tbody></table>`;
+  tableRoot.querySelectorAll('tr[data-idx]').forEach(tr => {
+    tr.addEventListener('click', () => openModal(Number(tr.dataset.idx)));
+  });
+}
+
+function openModal(idx) {
+  editingIndex = idx;
+  const r = data[idx];
+  mName.value = r.name || '';
+  mRole.value = r.role || '';
+  mStep.value = r.salaryStep || '';
+  mCoef.value = r.coefficient ?? '';
+  mCurrent.value = r.currentDate ? isoDate(r.currentDate) : '';
+  mBirth.value = r.birthDate ? isoDate(r.birthDate) : '';
+  mNote.value = r.note || '';
+  updateModalDerived();
+  editModal.classList.remove('hidden');
+  editModal.classList.add('flex');
+}
+
+function closeModal() {
+  editModal.classList.add('hidden');
+  editModal.classList.remove('flex');
+}
+
+function updateModalDerived() {
+  const step = Number(mStep.value);
+  const cur = mCurrent.value ? new Date(mCurrent.value) : null;
+  const birth = mBirth.value ? new Date(mBirth.value) : null;
+  const next = calcNext(step, cur);
+  const retire = calcRetire(birth);
+  const remain = next ? diffMonths(new Date(), next) : '';
+  mNext.textContent = next ? next.toLocaleDateString('vi-VN') : '';
+  mRetire.textContent = retire ? retire.toLocaleDateString('vi-VN') : '';
+  mRemain.textContent = remain !== '' ? remain : '';
+}
+
+[mStep, mCurrent, mBirth].forEach(el => el.addEventListener('input', updateModalDerived));
+
+mCancel.addEventListener('click', closeModal);
+mSave.addEventListener('click', () => {
+  if (editingIndex < 0) return;
+  const r = data[editingIndex];
+  r.name = mName.value.trim();
+  r.role = mRole.value.trim();
+  r.salaryStep = mStep.value ? Number(mStep.value) : '';
+  r.coefficient = mCoef.value ? Number(mCoef.value) : '';
+  r.currentDate = mCurrent.value ? new Date(mCurrent.value) : null;
+  r.birthDate = mBirth.value ? new Date(mBirth.value) : null;
+  r.note = mNote.value.trim();
+  const d = computeDerived(r);
+  r.nextDate = d.nextDate;
+  r.monthsLeft = d.monthsLeft;
+  r.retireDate = d.retireDate;
+  closeModal();
+  render();
+});
+
+function computeDerived(r) {
+  const nextDate = calcNext(r.salaryStep, r.currentDate);
+  const monthsLeft = nextDate ? diffMonths(new Date(), nextDate) : '';
+  const retireDate = calcRetire(r.birthDate);
+  return { nextDate, monthsLeft, retireDate };
+}
+
+function calcNext(step, currentDate) {
+  if (!currentDate || !step) return null;
+  const months = step < 9 ? 24 : 36;
+  const d = new Date(currentDate);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+function calcRetire(birth) {
+  if (!birth) return null;
+  const d = new Date(birth);
+  d.setFullYear(d.getFullYear() + 60);
+  return d;
+}
+
+function diffMonths(a, b) {
+  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+}
+
+function isoDate(d) {
+  return d ? new Date(d).toISOString().slice(0, 10) : '';
+}
+
+importBtn.addEventListener('click', async () => {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) { alert('Vui lòng chọn file Excel trước!'); return; }
+  try {
+    const parsed = await parseExcelFile(file);
+    data = parsed.map(r => ({
+      name: r.name,
+      role: r.role,
+      salaryStep: '',
+      coefficient: r.coefficient,
+      currentDate: r.effectiveDate || null,
+      nextDate: null,
+      monthsLeft: '',
+      retireDate: null,
+      birthDate: null,
+      note: r.note || ''
+    }));
+    data = data.map(r => ({ ...r, ...computeDerived(r) }));
+    populateRoleOptions();
+    render();
+  } catch (e) {
+    console.error(e);
+    alert('Lỗi đọc file: ' + e.message);
+  }
+});
+
+exportBtn.addEventListener('click', () => exportToExcel(data));
+
+[searchInput, filterRole, filterStep, filterFrom, filterTo].forEach(el => {
+  el.addEventListener('input', render);
+});
 
 function kpi(label, value, cls) {
-  return `
-    <div class="p-4 rounded-xl border border-slate-100 ${cls}">
-      <div class="text-sm opacity-70">${label}</div>
-      <div class="text-2xl font-bold mt-1">${value}</div>
-    </div>`;
+  return `<div class="p-4 rounded-xl border border-slate-100 ${cls}">
+    <div class="text-sm opacity-70">${label}</div>
+    <div class="text-2xl font-bold mt-1">${value}</div>
+  </div>`;
 }
 
-function countBy(arr, fn){
+function countBy(arr, fn) {
   const m = {};
   for (const it of arr) {
-    const k = fn(it) || "";
+    const k = fn(it) || '';
     m[k] = (m[k] || 0) + 1;
   }
   return m;
 }
-function sumKeys(obj, keys){
-  return keys.reduce((s,k)=> s + (obj[k]||0), 0);
+
+function sumKeys(obj, keys) {
+  return keys.reduce((s, k) => s + (obj[k] || 0), 0);
 }
 
-export function renderTable(rows, sortState) {
-  const root = document.getElementById("tableRoot");
-  if (!root) return;
-
-  const headers = [
-    ["name","Họ và tên"], ["role","Chức danh"], ["unit","Đơn vị"],
-    ["level","Cấp học"], ["rank","Hạng"], ["rankCode","Mã CDNN"],
-    ["coefficient","Hệ số"], ["effectiveDate","Ngày hưởng"], ["note","Ghi chú"]
-  ];
-
-  const thead = `
-    <thead class="bg-slate-50 sticky top-0">
-      <tr>
-        ${headers.map(([key,label])=>`
-          <th class="px-3 py-2 text-left text-sm font-semibold text-slate-700 cursor-pointer"
-              data-sort="${key}">
-            ${label}
-            ${sortState.key === key ? (sortState.dir>0 ? "▲" : "▼") : ""}
-          </th>`).join("")}
-      </tr>
-    </thead>`;
-
-  const rowsHtml = rows.map(r => `
-    <tr class="border-b hover:bg-slate-50">
-      <td class="px-3 py-2">${safe(r.name)}</td>
-      <td class="px-3 py-2">${safe(r.role)}</td>
-      <td class="px-3 py-2">${safe(r.unit)}</td>
-      <td class="px-3 py-2">${safe(r.level)}</td>
-      <td class="px-3 py-2">${safe(r.rank)}</td>
-      <td class="px-3 py-2">${safe(r.rankCode)}</td>
-      <td class="px-3 py-2">${r.coefficient ?? ""}</td>
-      <td class="px-3 py-2">${r.effectiveDate ? new Date(r.effectiveDate).toLocaleDateString("vi-VN") : ""}</td>
-      <td class="px-3 py-2">${safe(r.note)}</td>
-    </tr>`).join("");
-
-  root.innerHTML = `
-    <table class="min-w-full text-sm">
-      ${thead}
-      <tbody>${rowsHtml || `<tr><td class="px-3 py-6 text-slate-500" colspan="9">Chưa có dữ liệu</td></tr>`}</tbody>
-    </table>`;
-
-  // gắn click sort
-  root.querySelectorAll("[data-sort]").forEach(th=>{
-    th.addEventListener("click", ()=>{
-      window.dispatchEvent(new CustomEvent("sortChange", { detail: th.dataset.sort }));
-    });
-  });
+function safe(s) {
+  return (s == null ? '' : String(s)).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 }
 
-function safe(s){ return (s==null? "": String(s)).replace(/[<>&]/g, c=>({ "<":"&lt;",">":"&gt;","&":"&amp;" }[c])); }
-
-export function exportToExcel(rows){
-  if (!rows?.length) { alert("Không có dữ liệu để xuất."); return; }
-  if (typeof XLSX === "undefined") { alert("Thiếu thư viện XLSX."); return; }
-  const data = rows.map(r=>({
-    "Họ và tên": r.name || "",
-    "Chức danh": r.role || "",
-    "Đơn vị": r.unit || "",
-    "Cấp học": r.level || "",
-    "Hạng": r.rank || "",
-    "Mã CDNN": r.rankCode || "",
-    "Hệ số": r.coefficient ?? "",
-    "Ngày hưởng": r.effectiveDate ? new Date(r.effectiveDate).toISOString().slice(0,10) : "",
-    "Ghi chú": r.note || ""
+function exportToExcel(rows) {
+  if (!rows.length) { alert('Không có dữ liệu để xuất.'); return; }
+  const data = rows.map(r => ({
+    'Họ tên': r.name || '',
+    'Chức danh': r.role || '',
+    'Bậc lương': r.salaryStep || '',
+    'Hệ số': r.coefficient ?? '',
+    'Ngày hưởng hiện tại': r.currentDate ? isoDate(r.currentDate) : '',
+    'Ngày tăng lương kế': r.nextDate ? isoDate(r.nextDate) : '',
+    'Còn lại (tháng)': r.monthsLeft ?? '',
+    'Ngày nghỉ hưu': r.retireDate ? isoDate(r.retireDate) : '',
+    'Ghi chú': r.note || ''
   }));
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Du lieu");
-  XLSX.writeFile(wb, `DuLieu_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, 'NhanVien');
+  XLSX.writeFile(wb, `NhanVien_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
+
+render();
