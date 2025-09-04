@@ -92,6 +92,64 @@ export async function parseExcelFile(file) {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
 
+  // Định dạng đặc biệt: header nằm ở hàng 6-7 với 2 cột Nam/Nữ cho ngày sinh
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(rows.length - 1, 20); i++) {
+    const r1 = rows[i] || [];
+    const r2 = rows[i + 1] || [];
+    const cond = norm(r2[2]) === "nam" && norm(r2[3]) === "nu" &&
+      norm(r1[1]).includes("ho") && norm(r1[4]).includes("chuc");
+    if (cond) { headerRow = i + 1; break; }
+  }
+
+  if (headerRow >= 0) {
+    const out = [];
+    for (let r = headerRow + 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const name = String(row[1] ?? "").trim();
+      if (!name) continue;
+
+      let gender = "";
+      let dobRaw = null;
+      if (row[2] != null && row[2] !== "") {
+        gender = "Nam";
+        dobRaw = row[2];
+      } else if (row[3] != null && row[3] !== "") {
+        gender = "Nữ";
+        dobRaw = row[3];
+      }
+      const birthDate = parseDate(dobRaw);
+
+      const role = row[4] || "";
+      const commune = row[5] || ""; // Thuộc xã/phường
+      const unit = row[6] || "";    // Cơ quan đơn vị
+      const startDate = parseDate(row[7]);
+      const level = row[8] || "";   // Hạng tương đương
+      const rank = row[9] || "";    // Chức danh nghề nghiệp hiện hưởng
+      const rankCode = row[10] || ""; // Mã chức danh nghề nghiệp
+      const coefficient = parseNumber(row[11]);
+      const effectiveDate = parseDate(row[12]);
+      const note = row[13] || "";
+
+      out.push({
+        name,
+        gender,
+        birthDate,
+        role,
+        commune,
+        unit,
+        startDate,
+        level,
+        rank,
+        rankCode,
+        coefficient,
+        effectiveDate,
+        note
+      });
+    }
+    return out;
+  }
+
   // tìm dòng header
   let hi = 0;
   const pick = (row, keys) => {
