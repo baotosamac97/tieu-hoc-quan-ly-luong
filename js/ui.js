@@ -1,4 +1,4 @@
-import { parseExcelFile } from './parser.js';
+import { parseExcelFile, parseDate, parseNumber } from './parser.js';
 
 let data = [];
 let view = [];
@@ -196,24 +196,40 @@ function isoDate(d) {
   return d ? new Date(d).toISOString().slice(0, 10) : '';
 }
 
+function normalizeRow(row) {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) {
+    const key = k
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+    out[key] = v;
+  }
+  return out;
+}
+
 importBtn.addEventListener('click', async () => {
   const file = fileInput.files && fileInput.files[0];
   if (!file) { alert('Vui lòng chọn file Excel trước!'); return; }
   try {
     const parsed = await parseExcelFile(file);
-    data = parsed.map(r => ({
-      name: r.name,
-      role: r.role,
-      salaryStep: '',
-      coefficient: r.coefficient,
-      currentDate: r.effectiveDate || null,
-      nextDate: null,
-      monthsLeft: '',
-      retireDate: null,
-      birthDate: null,
-      note: r.note || ''
-    }));
-    data = data.map(r => ({ ...r, ...computeDerived(r) }));
+    data = parsed.map(raw => {
+      const r = normalizeRow(raw);
+      const obj = {
+        name: r.name || r.hoten || r.hovaten || r.ten || '',
+        role: r.role || r.chucdanh || '',
+        salaryStep: '',
+        coefficient: parseNumber(r.coefficient ?? r.heso) ?? '',
+        currentDate: parseDate(r.effectivedate ?? r.ngayhuonghientai) || null,
+        nextDate: null,
+        monthsLeft: '',
+        retireDate: null,
+        birthDate: null,
+        note: r.note || r.ghichu || ''
+      };
+      return { ...obj, ...computeDerived(obj) };
+    });
     populateRoleOptions();
     render();
   } catch (e) {
