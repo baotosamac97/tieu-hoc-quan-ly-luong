@@ -6,12 +6,44 @@ function norm(s) {
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ").trim();
 }
-function parseNumber(x) {
+export function parseNumber(x) {
   if (x == null || x === "") return null;
-  const n = Number(String(x).replace(",", "."));
+  let s = String(x).trim();
+  if (!s) return null;
+  s = s.replace(/\s+/g, "");
+  let sign = 1;
+  if (s.startsWith("-")) { sign = -1; s = s.slice(1); }
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+      s = s.replace(/\./g, "");
+      const lastComma = s.lastIndexOf(",");
+      s = s.replace(/,/g, (m, i) => i === lastComma ? "." : "");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    const parts = s.split(",");
+    const last = parts[parts.length - 1];
+    if (last.length === 3 && parts.length > 1) {
+      s = parts.join("");
+    } else {
+      s = parts.slice(0, -1).join("") + "." + last;
+    }
+  } else if (hasDot) {
+    const parts = s.split(".");
+    const last = parts[parts.length - 1];
+    if (last.length === 3 && parts.length > 1) {
+      s = parts.join("");
+    } else {
+      s = parts.slice(0, -1).join("") + "." + last;
+    }
+  }
+  const n = Number(s) * sign;
   return Number.isFinite(n) ? n : null;
 }
-function parseDate(v) {
+export function parseDate(v) {
   if (!v) return null;
   // Excel serial
   if (typeof v === "number") {
@@ -20,12 +52,12 @@ function parseDate(v) {
   }
   const s = String(v).trim();
   if (!s) return null;
-  // yyyy-mm-dd
-  const iso = Date.parse(s);
-  if (!Number.isNaN(iso)) return new Date(iso);
-  // dd/mm/yyyy
+  // dd/mm/yyyy or dd-mm-yyyy
   const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  // yyyy-mm-dd or other formats parsable by Date
+  const iso = Date.parse(s);
+  if (!Number.isNaN(iso)) return new Date(iso);
   return null;
 }
 function unifyRole(raw) {
@@ -76,7 +108,7 @@ export async function parseExcelFile(file) {
   const keys = [
     ["Họ và tên","Họ tên","Ho va ten","Ho ten"],
     ["Chức danh","Chuc danh","Chuc vu","Chức vụ","Chức danh nghề nghiệp","Chuc danh nghe nghiep"],
-    ["Đơn vị","Don vi","Đơn vi"],
+    ["Đơn vị","Don vi"],
     ["CDNN/Hạng","CDNN/Hang","CDNN","Hạng","Hang","CDNN - Hạng"],
     ["Mã CDNN","Ma CDNN","Mã số CDNN","Ma so CDNN","Mã số","Ma so"],
     ["Hệ số","He so","Hệ số lương","He so luong"],
