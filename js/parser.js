@@ -61,11 +61,50 @@ export async function parseExcelFile(file) {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
   if (rows.length === 0) return [];
-  const headers = rows[0].map(h => String(h ?? "").trim());
+
+  // Find the header row (usually contains terms like 'STT' or 'Họ tên').
+  let headerRow = rows.findIndex(row =>
+    row.some(cell => {
+      if (typeof cell !== "string") return false;
+      const s = cell.toLowerCase();
+      return s.includes("stt") || s.includes("họ") || s.includes("ho tên") || s.includes("name");
+    })
+  );
+  if (headerRow === -1) headerRow = 0;
+
+  const primary = rows[headerRow].map(h => String(h ?? "").trim());
+  const next = rows[headerRow + 1] || [];
+  let headers = primary;
+  let dataStart = headerRow + 1;
+
+  const hasEmpty = primary.some(h => !h);
+  if (hasEmpty) {
+    const firstCell = next[0];
+    const nextIsData = next.length > 0 && (typeof firstCell === "number" || /^\d+$/.test(String(firstCell)));
+    if (!nextIsData) {
+      const secondary = next.map(h => String(h ?? "").trim());
+      const maxLen = Math.max(primary.length, secondary.length);
+      headers = [];
+      let carry = "";
+      for (let i = 0; i < maxLen; i++) {
+        if (primary[i]) carry = primary[i];
+        const top = carry;
+        const bottom = secondary[i] || "";
+        headers.push(`${top} ${bottom}`.trim());
+      }
+      dataStart = headerRow + 2;
+    }
+  }
+
+  const expectNumericFirst = headers[0] && headers[0].toLowerCase() === "stt";
   const out = [];
-  for (let r = 1; r < rows.length; r++) {
+  for (let r = dataStart; r < rows.length; r++) {
     const row = rows[r] || [];
     if (row.length === 0 || row.every(cell => cell == null || String(cell).trim() === "")) continue;
+    if (expectNumericFirst) {
+      const v = row[0];
+      if (v == null || v === "" || Number.isNaN(Number(v))) continue;
+    }
     const obj = {};
     headers.forEach((h, i) => {
       const key = h || `Column${i + 1}`;
