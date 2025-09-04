@@ -117,3 +117,27 @@ describe('parseExcelFile with multi-row headers', () => {
   });
 });
 
+describe('parseExcelFile without numeric STT', () => {
+  test('includes rows even when STT column is blank or non-numeric', async () => {
+    const aoa = [
+      ['STT', 'Họ tên', 'Tuổi'],
+      ['', 'Alice', 30],
+      ['N/A', 'Bob', 25]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    global.XLSX = XLSX;
+    const fakeFile = { arrayBuffer: async () => buf };
+    const parsed = await parseExcelFile(fakeFile);
+
+    expect(parsed).toEqual([
+      { 'STT': '', 'Họ tên': 'Alice', 'Tuổi': 30 },
+      { 'STT': 'N/A', 'Họ tên': 'Bob', 'Tuổi': 25 }
+    ]);
+  });
+});
+

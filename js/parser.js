@@ -101,10 +101,22 @@ export async function parseExcelFile(file) {
   for (let r = dataStart; r < rows.length; r++) {
     const row = rows[r] || [];
     if (row.length === 0 || row.every(cell => cell == null || String(cell).trim() === "")) continue;
+
+    // If the first column is "STT" but contains non-numeric values, keep the row
+    // and attempt to coerce any digits. Previously such rows were skipped entirely
+    // which caused "Không tìm thấy dữ liệu" errors for sheets where the STT column
+    // was blank or used non-number markers.
     if (expectNumericFirst) {
-      const v = row[0];
-      if (v == null || v === "" || Number.isNaN(Number(v))) continue;
+      const raw = row[0];
+      if (raw != null && String(raw).trim() !== "") {
+        const digits = String(raw).replace(/[^0-9]/g, "");
+        if (digits) {
+          const n = Number(digits);
+          if (!Number.isNaN(n)) row[0] = n;
+        }
+      }
     }
+
     const obj = {};
     headers.forEach((h, i) => {
       const key = h || `Column${i + 1}`;
