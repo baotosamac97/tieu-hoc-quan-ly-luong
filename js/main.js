@@ -1,6 +1,8 @@
 // Simplified web app for managing employee data
 // Provides three core functions: import from Excel, edit in-place and export back to Excel.
 
+import { parseExcelFile } from './parser.js';
+
 let data = [];
 
 const importBtn = document.getElementById('importBtn');
@@ -45,85 +47,24 @@ function renderTable() {
   });
 }
 
-/**
- * Detect the header row in an array-of-arrays extracted from a worksheet. The heuristic
- * chooses the row with the most non-empty cells (minimum of 3) among the first 20 rows.
- * Returns the index of the detected header row.
- */
-function detectHeaderRow(rows) {
-  let headerIndex = 0;
-  let maxCount = 0;
-  const maxSearch = Math.min(rows.length, 20);
-  for (let i = 0; i < maxSearch; i++) {
-    const row = rows[i];
-    const count = row.filter((cell) => String(cell).trim() !== '').length;
-    if (count >= 3 && count > maxCount) {
-      maxCount = count;
-      headerIndex = i;
-    }
-  }
-  return headerIndex;
-}
-
-/**
- * Convert worksheet data (array-of-arrays) into an array of objects. Uses the provided
- * header index to determine column names; empty header values are replaced with
- * generic names like "Cột 1".
- */
-function rowsToObjects(rows, headerIndex) {
-  const headers = rows[headerIndex].map((cell, idx) => {
-    const key = String(cell).trim();
-    return key !== '' ? key : `Cột ${idx + 1}`;
-  });
-  const objs = [];
-  for (let i = headerIndex + 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.every((cell) => String(cell).trim() === '')) continue;
-    const obj = {};
-    headers.forEach((key, idx) => {
-      obj[key] = row[idx] !== undefined ? row[idx] : '';
-    });
-    objs.push(obj);
-  }
-  return objs;
-}
-
-/**
- * Handle importing an Excel file. Reads the file as an ArrayBuffer, parses it with
- * XLSX.read and converts the first sheet to a JSON array using header detection.
- */
-function handleImport() {
+async function handleImport() {
   const file = fileInput.files && fileInput.files[0];
   if (!file) {
     alert('Vui lòng chọn file Excel trước!');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = (evt) => {
-    const arrayBuffer = evt.target.result;
-    try {
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-      if (!rows || rows.length === 0) {
-        alert('Không tìm thấy dữ liệu trong file.');
-        return;
-      }
-      const headerIndex = detectHeaderRow(rows);
-      const extracted = rowsToObjects(rows, headerIndex);
-      if (extracted.length === 0) {
-        alert('Không tìm thấy dữ liệu hợp lệ sau hàng tiêu đề.');
-        return;
-      }
-      data = extracted;
-      renderTable();
-    } catch (err) {
-      console.error('Lỗi đọc file:', err);
-      alert('File không hợp lệ hoặc không thể đọc.');
+  try {
+    const parsed = await parseExcelFile(file);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      alert('Không tìm thấy dữ liệu hợp lệ trong file.');
+      return;
     }
-  };
-  reader.readAsArrayBuffer(file);
+    data = parsed;
+    renderTable();
+  } catch (err) {
+    console.error('Lỗi đọc file:', err);
+    alert(`Định dạng file không hợp lệ: ${err.message}`);
+  }
 }
 
 /**
