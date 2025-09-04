@@ -44,14 +44,12 @@ describe('parseDate', () => {
   });
 });
 
-describe('parseExcelFile special format', () => {
-  test('parses table with gender columns', async () => {
+describe('parseExcelFile simple format', () => {
+  test('uses first row as headers', async () => {
     const aoa = [
-      [], [], [], [], [],
-      ["TT", "Họ và tên", "Ngày sinh", "", "Chức vụ", "Thuộc xã/phường", "Cơ quan", "Ngày bắt đầu giữ CDNN", "Mức lương hiện hưởng", "", "", "", "", "Ghi chú"],
-      ["", "", "Nam", "Nữ", "", "", "", "", "Hạng tương đương", "Chức danh nghề nghiệp hiện hưởng", "Mã chức danh nghề nghiệp", "Hệ số lương", "Ngày hưởng", ""],
-      [1, "Nguyen Van A", "02/03/2000", "", "Giáo viên", "Phường 1", "Trường A", "01/01/2015", "Tiểu học", "GV hạng II", "12345", "3,66", "01/04/2024", "Ghi chú A"],
-      [2, "Tran Thi B", "", "03/03/2001", "Hiệu trưởng", "Xã 2", "Trường B", "01/09/2016", "Tiểu học", "Hiệu trưởng", "67890", "4", "01/05/2023", ""]
+      ['Name', 'Age', 'Note'],
+      ['Alice', 30, 'A'],
+      ['Bob', '', 'B']
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -63,21 +61,10 @@ describe('parseExcelFile special format', () => {
     const fakeFile = { arrayBuffer: async () => buf };
     const parsed = await parseExcelFile(fakeFile);
 
-    expect(parsed).toHaveLength(2);
-    expect(parsed[0]).toMatchObject({
-      name: 'Nguyen Van A',
-      gender: 'Nam',
-      role: 'Giáo viên',
-      rank: 'GV hạng II',
-      rankCode: '12345'
-    });
-    expect(parsed[1]).toMatchObject({
-      name: 'Tran Thi B',
-      gender: 'Nữ',
-      role: 'Hiệu trưởng',
-      rank: 'Hiệu trưởng',
-      rankCode: '67890'
-    });
+    expect(parsed).toEqual([
+      { Name: 'Alice', Age: 30, Note: 'A' },
+      { Name: 'Bob', Age: '', Note: 'B' }
+    ]);
   });
 });
 
