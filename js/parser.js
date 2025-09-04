@@ -99,7 +99,12 @@ export async function parseExcelFile(file) {
     row.forEach((cell, i) => {
       const n = norm(cell);
       keys.forEach(keyArr => {
-        keyArr.forEach(k => { if (n === norm(k)) idx[keyArr[0]] = i; });
+        keyArr.forEach(k => {
+          // Một số file Excel có thể ghi thêm chú thích vào tiêu đề,
+          // ví dụ "Họ và tên (ghi chữ in hoa)". Ta dùng `includes` thay vì
+          // so sánh tuyệt đối để bắt được các trường hợp như vậy.
+          if (n.includes(norm(k))) idx[keyArr[0]] = i;
+        });
       });
     });
     return idx;
