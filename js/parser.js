@@ -58,8 +58,20 @@ export function parseDate(v) {
 export async function parseExcelFile(file) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array" });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+
+  // Some spreadsheets contain a blank cover sheet before the actual data. In
+  // the previous implementation we always read the first sheet which caused
+  // the import to fail with "Không tìm thấy dữ liệu". Iterate through the
+  // workbook and pick the first sheet that actually has rows.
+  let rows = [];
+  for (const name of wb.SheetNames) {
+    const sheet = wb.Sheets[name];
+    const r = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+    if (r.length) {
+      rows = r;
+      break;
+    }
+  }
   if (rows.length === 0) return [];
 
   // Find the header row (usually contains terms like 'STT' or 'Họ tên').

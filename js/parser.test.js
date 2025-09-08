@@ -140,3 +140,23 @@ describe('parseExcelFile without numeric STT', () => {
     ]);
   });
 });
+
+describe('parseExcelFile skipping empty sheets', () => {
+  test('uses first non-empty sheet when the first one is blank', async () => {
+    const empty = XLSX.utils.aoa_to_sheet([]);
+    const dataSheet = XLSX.utils.aoa_to_sheet([
+      ['Name', 'Age'],
+      ['Alice', 20]
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, empty, 'Cover');
+    XLSX.utils.book_append_sheet(wb, dataSheet, 'Data');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    global.XLSX = XLSX;
+    const fakeFile = { arrayBuffer: async () => buf };
+    const parsed = await parseExcelFile(fakeFile);
+
+    expect(parsed).toEqual([{ Name: 'Alice', Age: 20 }]);
+  });
+});
