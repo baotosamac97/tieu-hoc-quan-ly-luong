@@ -94,11 +94,13 @@ function renderKpis(rows) {
 
 function renderTable(rows) {
   const headers = [
+    ['stt', 'TT'],
     ['name', 'Họ tên'],
     ['role', 'Chức danh'],
     ['salaryStep', 'Bậc lương'],
     ['coefficient', 'Hệ số'],
     ['currentDate', 'Ngày hưởng hiện tại'],
+    ['birthDate', 'Ngày sinh'],
     ['nextDate', 'Ngày tăng lương kế'],
     ['monthsLeft', 'Còn lại (tháng)'],
     ['retireDate', 'Ngày nghỉ hưu'],
@@ -109,17 +111,19 @@ function renderTable(rows) {
   </tr></thead>`;
   const rowsHtml = rows.map(r => `
     <tr class="border-b hover:bg-slate-50 cursor-pointer" data-idx="${r._idx}">
+      <td class="px-3 py-2">${r.stt ?? ''}</td>
       <td class="px-3 py-2">${safe(r.name)}</td>
       <td class="px-3 py-2">${safe(r.role)}</td>
       <td class="px-3 py-2">${r.salaryStep ?? ''}</td>
       <td class="px-3 py-2">${r.coefficient ?? ''}</td>
       <td class="px-3 py-2">${r.currentDate ? new Date(r.currentDate).toLocaleDateString('vi-VN') : ''}</td>
+      <td class="px-3 py-2">${r.birthDate ? new Date(r.birthDate).toLocaleDateString('vi-VN') : ''}</td>
       <td class="px-3 py-2">${r.nextDate ? new Date(r.nextDate).toLocaleDateString('vi-VN') : ''}</td>
       <td class="px-3 py-2">${r.monthsLeft ?? ''}</td>
       <td class="px-3 py-2">${r.retireDate ? new Date(r.retireDate).toLocaleDateString('vi-VN') : ''}</td>
       <td class="px-3 py-2">${safe(r.note)}</td>
     </tr>`).join('');
-  tableRoot.innerHTML = `<table class="min-w-full text-sm">${thead}<tbody>${rowsHtml || `<tr><td class="px-3 py-6 text-slate-500" colspan="9">Chưa có dữ liệu</td></tr>`}</tbody></table>`;
+  tableRoot.innerHTML = `<table class="min-w-full text-sm">${thead}<tbody>${rowsHtml || `<tr><td class="px-3 py-6 text-slate-500" colspan="${headers.length}">Chưa có dữ liệu</td></tr>`}</tbody></table>`;
   tableRoot.querySelectorAll('tr[data-idx]').forEach(tr => {
     tr.addEventListener('click', () => openModal(Number(tr.dataset.idx)));
   });
@@ -232,22 +236,26 @@ importBtn.addEventListener('click', async () => {
       return;
     }
     setStatus('Đang xử lý dữ liệu...', 'info');
-    data = parsed.map(raw => {
-      const r = normalizeRow(raw);
-      const obj = {
-        name: r.name || r.hoten || r.hovaten || r.ten || '',
-        role: r.role || r.chucdanh || '',
-        salaryStep: '',
-        coefficient: parseNumber(r.coefficient ?? r.heso) ?? '',
-        currentDate: parseDate(r.effectivedate ?? r.ngayhuonghientai) || null,
-        nextDate: null,
-        monthsLeft: '',
-        retireDate: null,
-        birthDate: null,
-        note: r.note || r.ghichu || ''
-      };
-      return { ...obj, ...computeDerived(obj) };
-    });
+    data = parsed
+      .map(raw => {
+        const r = normalizeRow(raw);
+        const obj = {
+          stt: parseNumber(r.tt ?? r.stt) ?? '',
+          name: r.name || r.hoten || r.hovaten || r.ten || '',
+          role: r.role || r.chucdanh || '',
+          salaryStep: parseNumber(r.salarystep ?? r.bac ?? r.bacluong) ?? '',
+          coefficient: parseNumber(r.coefficient ?? r.heso ?? r.hesoluong) ?? '',
+          currentDate: parseDate(r.effectivedate ?? r.ngayhuonghientai ?? r.tungay) || null,
+          birthDate: parseDate(r.birthdate ?? r.ngaysinh) || null,
+          nextDate: null,
+          monthsLeft: '',
+          retireDate: null,
+          note: r.note || r.ghichu || ''
+        };
+        if (!obj.name) return null;
+        return { ...obj, ...computeDerived(obj) };
+      })
+      .filter(Boolean);
     populateRoleOptions();
     render();
     setStatus(`Đã nhập ${data.length} dòng dữ liệu.`, 'success');
@@ -290,11 +298,13 @@ function safe(s) {
 function exportToExcel(rows) {
   if (!rows.length) { alert('Không có dữ liệu để xuất.'); return; }
   const data = rows.map(r => ({
+    'TT': r.stt || '',
     'Họ tên': r.name || '',
     'Chức danh': r.role || '',
     'Bậc lương': r.salaryStep || '',
     'Hệ số': r.coefficient ?? '',
     'Ngày hưởng hiện tại': r.currentDate ? isoDate(r.currentDate) : '',
+    'Ngày sinh': r.birthDate ? isoDate(r.birthDate) : '',
     'Ngày tăng lương kế': r.nextDate ? isoDate(r.nextDate) : '',
     'Còn lại (tháng)': r.monthsLeft ?? '',
     'Ngày nghỉ hưu': r.retireDate ? isoDate(r.retireDate) : '',
