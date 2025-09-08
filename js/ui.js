@@ -277,7 +277,17 @@ importBtn.addEventListener('click', async () => {
         const obj = {
           stt: parseNumber(r.tt ?? r.stt) ?? '',
           name: pickString(r, ['name','hoten','hovaten','ten']),
-          role: pickString(r, ['role','chucdanh','chucvu']),
+          role: pickString(r, [
+            'role',
+            'chucdanh',
+            'chucvu',
+            'chucdanhnghenghiep',
+            'vitri',
+            'vitricongtac',
+            'vitricongviec',
+            'vitricongvieclam',
+            'vitrivieclam'
+          ]),
           salaryStep: pickNumber(r, ['salarystep','bac','bacluong','bacluonghienhuong'], 20),
           coefficient: pickCoefficient(r),
           currentDate: pickDate(r, ['effectivedate','ngayhuonghientai','tungay','ngayhienhuong']),
