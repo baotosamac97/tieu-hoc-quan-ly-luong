@@ -1,4 +1,6 @@
 import { parseExcelFile, parseDate, parseNumber } from './parser.js';
+import { computeRaise } from './salary/compute.js';
+import { formatDMY, parseDMY } from './date/dmy.js';
 
 let data = [];
 let view = [];
@@ -39,6 +41,31 @@ function setStatus(message, type = 'info') {
   }[type] || 'text-slate-600';
   importStatus.className = `text-sm mb-4 ${cls}`;
   importStatus.textContent = message;
+}
+
+function parseRoman(str) {
+  if (!str) return null;
+  const roman = String(str).trim().toUpperCase();
+  const map = {I:1,V:5,X:10,L:50,C:100,D:500,M:1000};
+  let prev = 0, total = 0;
+  for (let i = roman.length - 1; i >= 0; i--) {
+    const val = map[roman[i]];
+    if (!val) return null;
+    if (val < prev) total -= val; else { total += val; prev = val; }
+  }
+  return total || null;
+}
+
+function toRoman(num) {
+  if (!num || num <= 0) return '';
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
+  const romans = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];
+  let n = num;
+  let out = '';
+  for (let i = 0; i < vals.length; i++) {
+    while (n >= vals[i]) { out += romans[i]; n -= vals[i]; }
+  }
+  return out;
 }
 
 // init step options
@@ -150,15 +177,18 @@ function closeModal() {
 }
 
 function updateModalDerived() {
-  const step = Number(mStep.value);
-  const cur = mCurrent.value ? new Date(mCurrent.value) : null;
-  const birth = mBirth.value ? new Date(mBirth.value) : null;
-  const next = calcNext(step, cur);
-  const retire = calcRetire(birth);
-  const remain = next ? diffMonths(new Date(), next) : '';
-  mNext.textContent = next ? next.toLocaleDateString('vi-VN') : '';
-  mRetire.textContent = retire ? retire.toLocaleDateString('vi-VN') : '';
-  mRemain.textContent = remain !== '' ? remain : '';
+  const temp = {
+    salaryStep: mStep.value ? Number(mStep.value) : '',
+    coefficient: mCoef.value ? Number(mCoef.value) : '',
+    currentDate: mCurrent.value ? new Date(mCurrent.value) : null,
+    birthDate: mBirth.value ? new Date(mBirth.value) : null,
+    retireDate: editingIndex >= 0 ? data[editingIndex].retireDate : null,
+    ngach: editingIndex >= 0 ? data[editingIndex].ngach : undefined
+  };
+  const d = computeDerived(temp);
+  mNext.textContent = d.nextDate ? d.nextDate.toLocaleDateString('vi-VN') : '';
+  mRetire.textContent = d.retireDate ? d.retireDate.toLocaleDateString('vi-VN') : '';
+  mRemain.textContent = d.monthsLeft !== '' ? d.monthsLeft : '';
 }
 
 [mStep, mCurrent, mBirth].forEach(el => el.addEventListener('input', updateModalDerived));
@@ -183,18 +213,19 @@ mSave.addEventListener('click', () => {
 });
 
 function computeDerived(r) {
-  const nextDate = calcNext(r.salaryStep, r.currentDate);
-  const monthsLeft = nextDate ? diffMonths(new Date(), nextDate) : '';
-  const retireDate = calcRetire(r.birthDate);
-  return { nextDate, monthsLeft, retireDate };
-}
-
-function calcNext(step, currentDate) {
-  if (!currentDate || !step) return null;
-  const months = step < 9 ? 24 : 36;
-  const d = new Date(currentDate);
-  d.setMonth(d.getMonth() + months);
-  return d;
+  const retireDate = r.retireDate || calcRetire(r.birthDate);
+  const out = computeRaise({
+    HeSo: r.coefficient,
+    NgayHuongHienTai: r.currentDate ? formatDMY(r.currentDate) : undefined,
+    NgayNghiHuu: retireDate ? formatDMY(retireDate) : undefined,
+    BacLuong: r.salaryStep,
+    Ngach: r.ngach
+  });
+  return {
+    nextDate: out.NgayTangLuongKe ? parseDMY(out.NgayTangLuongKe) : null,
+    monthsLeft: out.ConLaiThang,
+    retireDate
+  };
 }
 
 function calcRetire(birth) {
@@ -202,10 +233,6 @@ function calcRetire(birth) {
   const d = new Date(birth);
   d.setFullYear(d.getFullYear() + 60);
   return d;
-}
-
-function diffMonths(a, b) {
-  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
 }
 
 function isoDate(d) {
@@ -236,6 +263,18 @@ function pickString(obj, keys) {
 function pickNumber(obj, keys, max = Infinity) {
   for (const k of keys) {
     const n = parseNumber(obj[k]);
+    if (n != null && n < max) return n;
+  }
+  return '';
+}
+
+function pickStep(obj, keys, max = Infinity) {
+  for (const k of keys) {
+    const v = obj[k];
+    if (v == null || String(v).trim() === '') continue;
+    const roman = parseRoman(v);
+    if (roman != null && roman < max) return roman;
+    const n = parseNumber(v);
     if (n != null && n < max) return n;
   }
   return '';
@@ -289,13 +328,14 @@ importBtn.addEventListener('click', async () => {
             'vitricongvieclam',
             'vitrivieclam'
           ]),
-          salaryStep: pickNumber(r, ['salarystep','bac','bacluong','bacluonghienhuong','hangtuongduong'], 20),
+          salaryStep: pickStep(r, ['salarystep','bac','bacluong','bacluonghienhuong','hangtuongduong'], 20),
           coefficient: pickCoefficient(r),
           currentDate: pickDate(r, ['effectivedate','ngayhuonghientai','tungay','ngayhienhuong','ngayhuong']),
           birthDate: pickDate(r, ['birthdate','ngaysinh','ngaysinhnhat','ngaythangnamsinh']),
+          ngach: pickString(r, ['ngach','nhomngach','mangach']),
+          retireDate: pickDate(r, ['ngaynghihuu']),
           nextDate: null,
           monthsLeft: '',
-          retireDate: null,
           note: pickString(r, ['note','ghichu'])
         };
         if (!obj.name) return null;
@@ -347,13 +387,13 @@ function exportToExcel(rows) {
     'TT': r.stt || '',
     'Họ tên': r.name || '',
     'Chức danh': r.role || '',
-    'Bậc lương': r.salaryStep || '',
+    'Bậc lương': r.salaryStep ? toRoman(r.salaryStep) : '',
     'Hệ số': r.coefficient ?? '',
-    'Ngày hưởng hiện tại': r.currentDate ? isoDate(r.currentDate) : '',
-    'Ngày sinh': r.birthDate ? isoDate(r.birthDate) : '',
-    'Ngày tăng lương kế': r.nextDate ? isoDate(r.nextDate) : '',
+    'Ngày hưởng hiện tại': r.currentDate ? formatDMY(r.currentDate) : '',
+    'Ngày sinh': r.birthDate ? formatDMY(r.birthDate) : '',
+    'Ngày tăng lương kế': r.nextDate ? formatDMY(r.nextDate) : '',
     'Còn lại (tháng)': r.monthsLeft ?? '',
-    'Ngày nghỉ hưu': r.retireDate ? isoDate(r.retireDate) : '',
+    'Ngày nghỉ hưu': r.retireDate ? formatDMY(r.retireDate) : '',
     'Ghi chú': r.note || ''
   }));
   const ws = XLSX.utils.json_to_sheet(data);
