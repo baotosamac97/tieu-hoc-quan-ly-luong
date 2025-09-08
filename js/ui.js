@@ -72,7 +72,7 @@ function toRoman(num) {
 for (let i = 1; i <= 12; i++) {
   const opt = document.createElement('option');
   opt.value = String(i);
-  opt.textContent = `Bậc ${i}`;
+  opt.textContent = `Bậc ${toRoman(i)}`;
   filterStep.appendChild(opt);
 }
 
@@ -141,7 +141,7 @@ function renderTable(rows) {
       <td class="px-3 py-2">${r.stt ?? ''}</td>
       <td class="px-3 py-2">${safe(r.name)}</td>
       <td class="px-3 py-2">${safe(r.role)}</td>
-      <td class="px-3 py-2">${r.salaryStep ?? ''}</td>
+      <td class="px-3 py-2">${r.salaryStep ? toRoman(r.salaryStep) : ''}</td>
       <td class="px-3 py-2">${r.coefficient ?? ''}</td>
       <td class="px-3 py-2">${r.currentDate ? new Date(r.currentDate).toLocaleDateString('vi-VN') : ''}</td>
       <td class="px-3 py-2">${r.birthDate ? new Date(r.birthDate).toLocaleDateString('vi-VN') : ''}</td>
