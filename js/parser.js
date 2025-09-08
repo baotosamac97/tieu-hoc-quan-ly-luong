@@ -72,39 +72,86 @@ export async function parseExcelFile(file) {
   );
   if (headerRow === -1) headerRow = 0;
 
-  const primary = rows[headerRow].map(h => String(h ?? "").trim());
-  const next = rows[headerRow + 1] || [];
-  let headers = primary;
+  // Collect all header rows until a row appears to contain data. This allows
+  // parsing sheets whose headers span more than two rows.
+  const headerRows = [];
   let dataStart = headerRow + 1;
+  for (let r = headerRow; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const trimmed = row.map(h => String(h ?? "").trim());
+    headerRows.push(trimmed);
 
-  const hasEmpty = primary.some(h => !h);
-  if (hasEmpty) {
-    const firstCell = next[0];
-    const nextIsData = next.length > 0 && (typeof firstCell === "number" || /^\d+$/.test(String(firstCell)));
-    if (!nextIsData) {
-      const secondary = next.map(h => String(h ?? "").trim());
-      const maxLen = Math.max(primary.length, secondary.length);
-      headers = [];
-      let carry = "";
-      for (let i = 0; i < maxLen; i++) {
-        if (primary[i]) carry = primary[i];
-        const top = carry;
-        const bottom = secondary[i] || "";
-        headers.push(`${top} ${bottom}`.trim());
+    if (r > headerRow) {
+      const looksData = row.some(cell => {
+        if (typeof cell === "number") return true;
+        if (typeof cell === "string" && /\d/.test(cell)) return true;
+        return false;
+      });
+      if (looksData) {
+        headerRows.pop();
+        dataStart = r;
+        break;
       }
-      dataStart = headerRow + 2;
     }
   }
 
-  const expectNumericFirst = headers[0] && headers[0].toLowerCase() === "stt";
+  const maxLen = Math.max(...headerRows.map(r => r.length));
+  const filled = [];
+  for (let idx = 0; idx < headerRows.length; idx++) {
+    const row = headerRows[idx];
+    const out = [];
+    let carry = "";
+    for (let i = 0; i < maxLen; i++) {
+      let cell = row[i] ?? "";
+      cell = String(cell).trim();
+      if (cell) {
+        carry = cell;
+      } else if (idx === 0) {
+        cell = carry;
+      } else if (idx !== headerRows.length - 1 && i > 0 && filled[idx - 1][i] === filled[idx - 1][i - 1]) {
+        cell = carry;
+      } else {
+        carry = "";
+      }
+      out.push(cell);
+    }
+    filled.push(out);
+  }
+
+  const headers = [];
+  for (let c = 0; c < maxLen; c++) {
+    const parts = [];
+    for (let r = 0; r < filled.length; r++) {
+      const cell = filled[r][c];
+      if (cell && (parts.length === 0 || parts[parts.length - 1] !== cell)) {
+        parts.push(cell);
+      }
+    }
+    headers[c] = parts.join(" ").trim();
+  }
+
+  const firstHeader = headers[0] ? headers[0].toLowerCase() : "";
+  const expectNumericFirst = firstHeader === "stt" || firstHeader === "tt";
   const out = [];
   for (let r = dataStart; r < rows.length; r++) {
     const row = rows[r] || [];
     if (row.length === 0 || row.every(cell => cell == null || String(cell).trim() === "")) continue;
+
+    // If the first column is "STT" but contains non-numeric values, keep the row
+    // and attempt to coerce any digits. Previously such rows were skipped entirely
+    // which caused "Không tìm thấy dữ liệu" errors for sheets where the STT column
+    // was blank or used non-number markers.
     if (expectNumericFirst) {
-      const v = row[0];
-      if (v == null || v === "" || Number.isNaN(Number(v))) continue;
+      const raw = row[0];
+      if (raw != null && String(raw).trim() !== "") {
+        const digits = String(raw).replace(/[^0-9]/g, "");
+        if (digits) {
+          const n = Number(digits);
+          if (!Number.isNaN(n)) row[0] = n;
+        }
+      }
     }
+
     const obj = {};
     headers.forEach((h, i) => {
       const key = h || `Column${i + 1}`;

@@ -117,3 +117,75 @@ describe('parseExcelFile with multi-row headers', () => {
   });
 });
 
+describe('parseExcelFile without numeric STT', () => {
+  test('includes rows even when STT column is blank or non-numeric', async () => {
+    const aoa = [
+      ['STT', 'Họ tên', 'Tuổi'],
+      ['', 'Alice', 30],
+      ['N/A', 'Bob', 25]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    global.XLSX = XLSX;
+    const fakeFile = { arrayBuffer: async () => buf };
+    const parsed = await parseExcelFile(fakeFile);
+
+    expect(parsed).toEqual([
+      { 'STT': '', 'Họ tên': 'Alice', 'Tuổi': 30 },
+      { 'STT': 'N/A', 'Họ tên': 'Bob', 'Tuổi': 25 }
+    ]);
+  });
+});
+
+describe('parseExcelFile with three header rows', () => {
+  test('merges nested headers deeper than two rows', async () => {
+    const aoa = [
+      ['Meta1'],
+      ['Meta2'],
+      ['TT', 'Họ tên', 'Thông tin lương', '', '', '', 'Phụ cấp', '', 'Ghi chú'],
+      ['', '', 'Ngạch', 'Bậc', 'Hệ số', 'Hệ số', 'Chức vụ', 'Ngày hưởng', ''],
+      ['', '', '', '', 'Hiện hưởng', 'Ngày hưởng', '', '', ''],
+      [1, 'Nguyễn Văn A', 'A1', 1, 3.0, '01/01/2020', 'GV', '02/02/2021', ''],
+      [2, 'Trần Thị B', 'A2', 2, 3.1, '03/03/2022', 'PHT', '04/04/2023', 'ghi chú']
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    global.XLSX = XLSX;
+    const fakeFile = { arrayBuffer: async () => buf };
+    const parsed = await parseExcelFile(fakeFile);
+
+    expect(parsed).toEqual([
+      {
+        'TT': 1,
+        'Họ tên': 'Nguyễn Văn A',
+        'Thông tin lương Ngạch': 'A1',
+        'Thông tin lương Bậc': 1,
+        'Thông tin lương Hệ số Hiện hưởng': 3.0,
+        'Thông tin lương Hệ số Ngày hưởng': '01/01/2020',
+        'Phụ cấp Chức vụ': 'GV',
+        'Phụ cấp Ngày hưởng': '02/02/2021',
+        'Ghi chú': ''
+      },
+      {
+        'TT': 2,
+        'Họ tên': 'Trần Thị B',
+        'Thông tin lương Ngạch': 'A2',
+        'Thông tin lương Bậc': 2,
+        'Thông tin lương Hệ số Hiện hưởng': 3.1,
+        'Thông tin lương Hệ số Ngày hưởng': '03/03/2022',
+        'Phụ cấp Chức vụ': 'PHT',
+        'Phụ cấp Ngày hưởng': '04/04/2023',
+        'Ghi chú': 'ghi chú'
+      }
+    ]);
+  });
+});
+
