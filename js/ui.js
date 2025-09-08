@@ -225,6 +225,41 @@ function normalizeRow(row) {
   return out;
 }
 
+function pickString(obj, keys) {
+  for (const k of keys) {
+    const v = obj[k];
+    if (v != null && String(v).trim() !== '') return String(v).trim();
+  }
+  return '';
+}
+
+function pickNumber(obj, keys, max = Infinity) {
+  for (const k of keys) {
+    const n = parseNumber(obj[k]);
+    if (n != null && n < max) return n;
+  }
+  return '';
+}
+
+function pickDate(obj, keys) {
+  for (const k of keys) {
+    const d = parseDate(obj[k]);
+    if (d) return d;
+  }
+  return null;
+}
+
+function pickCoefficient(obj) {
+  const keys = Object.keys(obj).filter(k =>
+    k.includes('heso') || k.includes('hesoluong') || k.includes('coefficient')
+  );
+  for (const k of keys) {
+    const n = parseNumber(obj[k]);
+    if (n != null && n < 20) return n;
+  }
+  return '';
+}
+
 importBtn.addEventListener('click', async () => {
   const file = fileInput.files && fileInput.files[0];
   if (!file) { setStatus('Vui lòng chọn file Excel trước!', 'error'); return; }
@@ -241,16 +276,16 @@ importBtn.addEventListener('click', async () => {
         const r = normalizeRow(raw);
         const obj = {
           stt: parseNumber(r.tt ?? r.stt) ?? '',
-          name: r.name || r.hoten || r.hovaten || r.ten || '',
-          role: r.role || r.chucdanh || '',
-          salaryStep: parseNumber(r.salarystep ?? r.bac ?? r.bacluong) ?? '',
-          coefficient: parseNumber(r.coefficient ?? r.heso ?? r.hesoluong) ?? '',
-          currentDate: parseDate(r.effectivedate ?? r.ngayhuonghientai ?? r.tungay) || null,
-          birthDate: parseDate(r.birthdate ?? r.ngaysinh) || null,
+          name: pickString(r, ['name','hoten','hovaten','ten']),
+          role: pickString(r, ['role','chucdanh','chucvu']),
+          salaryStep: pickNumber(r, ['salarystep','bac','bacluong','bacluonghienhuong'], 20),
+          coefficient: pickCoefficient(r),
+          currentDate: pickDate(r, ['effectivedate','ngayhuonghientai','tungay','ngayhienhuong']),
+          birthDate: pickDate(r, ['birthdate','ngaysinh','ngaysinhnhat']),
           nextDate: null,
           monthsLeft: '',
           retireDate: null,
-          note: r.note || r.ghichu || ''
+          note: pickString(r, ['note','ghichu'])
         };
         if (!obj.name) return null;
         return { ...obj, ...computeDerived(obj) };
