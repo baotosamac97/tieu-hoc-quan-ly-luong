@@ -9,11 +9,42 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+
+      # Node để build project (đổi nếu bạn dùng phiên bản khác)
+      - uses: actions/setup-node@v4
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 20
+          cache: npm
+
+      # CÀI & BUILD (điều chỉnh nếu không dùng npm hoặc không cần build)
+      - name: Install deps
+        run: npm ci
+      - name: Build
+        run: npm run build
+
+      # (Khuyến nghị) Kiểm tra nhanh credentials + firebase.json trước khi deploy
+      - name: Sanity check Firebase CLI & config
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/fb.json
+          FIREBASE_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUONG }}
+        run: |
+          echo "$FIREBASE_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx --yes firebase-tools@13 --version
+          test -f ./firebase.json && echo "✅ Found firebase.json at repo root" || (echo "❌ firebase.json NOT at root"; ls -la)
+          # Xem danh sách sites (không fail job nếu lỗi, chỉ để log)
+          npx --yes firebase-tools@13 --non-interactive --project ql-luong-tieu-hoc hosting:sites:list || true
+
+      # DEPLOY LIVE
+      - name: Deploy (live)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}               # không bắt buộc cho 'push', giữ lại cho đồng nhất
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUONG }}
-          channelId: live
           projectId: ql-luong-tieu-hoc
+          channelId: live
+          firebaseToolsVersion: '13'                           # pin CLI để tránh lỗi do 'latest'
+          # entryPoint: .                                       # nếu firebase.json KHÔNG ở root, đổi path, ví dụ: app/web
